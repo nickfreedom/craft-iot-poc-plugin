@@ -1,0 +1,40 @@
+{
+    "name": "nickleguillou/craft-iot-poc",
+    "description": "Companion Plugin for Craft IoT PoC Presentation.",
+    "type": "craft-plugin",
+    "version": "1.0.0",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "craft iot poc"
+    ],
+    "support": {
+        "docs": "https://github.com/nickfreedom/craft-iot-poc-plugin/blob/master/README.md",
+        "issues": "https://github.com/nickfreedom/craft-iot-poc-plugin/issues"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Nick Le Guillou",
+            "homepage": "https://github.com/nickfreedom"
+        }
+    ],
+    "require": {
+        "craftcms/cms": "^3.0.0-RC1"
+    },
+    "autoload": {
+        "psr-4": {
+          "nickleguillou\\craftiotpoc\\": "src/"
+        }
+    },
+    "extra": {
+        "name": "Craft IoT PoC",
+        "handle": "craft-iot-poc",
+        "hasCpSettings": false,
+        "hasCpSection": false,
+        "changelogUrl": "https://raw.githubusercontent.com/nickfreedom/craft-iot-poc-plugin/master/CHANGELOG.md",
+        "class": "nickleguillou\\craftiotpoc\\CraftIotPoc"
+    }
+}
