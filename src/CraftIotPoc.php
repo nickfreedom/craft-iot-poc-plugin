@@ -61,7 +61,7 @@ class CraftIotPoc extends Plugin
             UrlManager::class,
             UrlManager::EVENT_REGISTER_SITE_URL_RULES,
             function (RegisterUrlRulesEvent $event) {
-                $event->rules['siteActionTrigger1'] = 'craft-io-t-po-c/api';
+                $event->rules['siteActionTrigger1'] = 'craft-iot-poc/api';
             }
         );
 
@@ -69,7 +69,7 @@ class CraftIotPoc extends Plugin
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
             function (RegisterUrlRulesEvent $event) {
-                $event->rules['cpActionTrigger1'] = 'craft-io-t-po-c/api/do-something';
+                $event->rules['cpActionTrigger1'] = 'craft-iot-poc/api/do-something';
             }
         );
 
@@ -84,7 +84,7 @@ class CraftIotPoc extends Plugin
 
         Craft::info(
             Craft::t(
-                'craft-io-t-po-c',
+                'craft-iot-poc',
                 '{name} plugin loaded',
                 ['name' => $this->name]
             ),

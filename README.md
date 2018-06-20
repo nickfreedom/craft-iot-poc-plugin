@@ -18,7 +18,7 @@ To install the plugin, follow these instructions.
 
 2. Then tell Composer to load the plugin:
 
-        composer require nickfreedom/craft-io-t-po-c
+        composer require nickfreedom/craft-iot-poc
 
 3. In the Control Panel, go to Settings → Plugins and click the “Install” button for Craft IoT PoC.
 

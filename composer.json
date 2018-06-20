@@ -8,7 +8,9 @@
         "cms",
         "craftcms",
         "craft-plugin",
-        "craft iot poc"
+        "craft iot poc",
+        "craft-iot-poc"
+        
     ],
     "support": {
         "docs": "https://github.com/nickfreedom/craft-iot-poc-plugin/blob/master/README.md",
@@ -22,7 +24,7 @@
         }
     ],
     "require": {
-        "craftcms/cms": "^3.0.0-RC1"
+        "craftcms/cms": "^3.0.12"
     },
     "autoload": {
         "psr-4": {
