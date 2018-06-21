@@ -15,6 +15,8 @@ use Craft;
 use craft\base\Plugin;
 use craft\services\Plugins;
 use craft\events\PluginEvent;
+use craft\services\Elements;
+use craft\events\ElementEvent;
 use craft\web\UrlManager;
 use craft\events\RegisterUrlRulesEvent;
 
@@ -78,6 +80,23 @@ class CraftIotPoc extends Plugin
             Plugins::EVENT_AFTER_INSTALL_PLUGIN,
             function (PluginEvent $event) {
                 if ($event->plugin === $this) {
+                }
+            }
+        );
+
+        // TESTINGS
+        Event::on(
+            Elements::class,
+            Elements::EVENT_BEFORE_SAVE_ELEMENT,
+            function (ElementEvent $event) {
+                $section = Craft::$app->sections->getSectionByHandle('devices');
+
+                if ($section->id != $event->element->sectionId) {
+                    return;
+                }
+
+                if (!$event->element->getFieldValue('key')) {
+                    $event->element->setFieldValues(['key' => uniqid()]);
                 }
             }
         );

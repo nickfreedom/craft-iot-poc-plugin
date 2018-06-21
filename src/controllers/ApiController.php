@@ -90,4 +90,55 @@ class ApiController extends Controller
             throw new \Exception("Couldn't save new device: " . print_r($entry->getErrors(), true)); 
         }
     }
+
+    public function actionRecord()
+    {
+        $this->requirePostRequest();
+
+        $raw = Craft::$app->getRequest()->getRawBody();
+        $json = Json::decodeIfJson($raw);
+
+        $key = $json['key'];
+
+        $device = Entry::find()
+            ->section('devices')
+            ->limit(1)
+            ->key($key)
+            ->one();
+
+        if (!$device) {
+            throw new \Exception("Couldn't find device with key: " . print_r($key, true)); 
+        }
+
+        $section = Craft::$app->sections->getSectionByHandle('timeseries');
+        $entryTypes = $section->getEntryTypes();
+        $entryType = reset($entryTypes);
+
+        $entries = [];
+
+        foreach ($json['records'] as $record) {
+            $entry = new Entry([
+                'sectionId' => $section->id,
+                'typeId' => $entryType->id,
+                'fieldLayoutId' => $entryType->fieldLayoutId,
+                'authorId' => 1,
+            ]);    
+
+            $fieldValues = [
+                'device' => [ $device->id ],
+                'signalName' => $record['signal'],
+                'signalValue' => $record['value']
+            ];
+
+            $entry->setFieldValues($fieldValues);
+
+            if(Craft::$app->elements->saveElement($entry)) {
+                $entries[] = $entry;
+            } else {
+                throw new \Exception("Couldn't save new time series: " . print_r($entry->getErrors(), true)); 
+            }
+        }
+
+        return $this->asJson($entries);
+    }
 }
