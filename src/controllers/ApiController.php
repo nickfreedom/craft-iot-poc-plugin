@@ -8,7 +8,9 @@
  * @copyright Copyright (c) 2018 Nick Le Guillou
  */
 
-namespace nickleguillou\craftiotpoc\controllers;
+ namespace nickleguillou\craftiotpoc\controllers;
+
+ require __DIR__ . '/../../vendor/autoload.php';
 
 use nickleguillou\craftiotpoc\CraftIotPoc;
 
@@ -16,6 +18,8 @@ use Craft;
 use craft\web\Controller;
 use craft\helpers\Json;
 use craft\elements\Entry;
+
+use Pusher\Pusher;
 
 /**
  * @author    Nick Le Guillou
@@ -132,13 +136,37 @@ class ApiController extends Controller
 
             $entry->setFieldValues($fieldValues);
 
-            if(Craft::$app->elements->saveElement($entry)) {
-                $entries[] = $entry;
-            } else {
+            if(!Craft::$app->elements->saveElement($entry)) {
                 throw new \Exception("Couldn't save new time series: " . print_r($entry->getErrors(), true)); 
             }
+
+            $options = array(
+                'cluster' => 'us2',
+                'encrypted' => true
+            );
+            
+            $pusher = new Pusher(
+                '9e129f0beb6fd9dbe0d9',
+                'bc1e7e8b2c1143dc9cb4',
+                '549019',
+                $options
+            );
+            
+            $data = [
+                'timestamp' => $entry->postDate->format('U'),
+                'device' => $entry->getFieldValue('device')->one()->getFieldValue('key'),
+                'signal' => $entry->getFieldValue('signalName'),
+                'value' => $entry->getFieldValue('signalValue')
+            ];
+
+
+            $pusher->trigger('my-channel', 'my-event', $data);
+
+            $entries[] = $data;
         }
 
+
+        
         return $this->asJson($entries);
     }
 }

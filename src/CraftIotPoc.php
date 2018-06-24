@@ -84,7 +84,6 @@ class CraftIotPoc extends Plugin
             }
         );
 
-        // TESTINGS
         Event::on(
             Elements::class,
             Elements::EVENT_BEFORE_SAVE_ELEMENT,
