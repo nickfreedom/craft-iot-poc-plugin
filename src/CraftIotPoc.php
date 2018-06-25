@@ -10,6 +10,8 @@
 
 namespace nickleguillou\craftiotpoc;
 
+use nickleguillou\craftiotpoc\twigextensions\CraftIoTPocTwigExtension;
+
 
 use Craft;
 use craft\base\Plugin;
@@ -58,6 +60,8 @@ class CraftIotPoc extends Plugin
     {
         parent::init();
         self::$plugin = $this;
+
+        Craft::$app->view->registerTwigExtension(new CraftIotPocTwigExtension());
 
         Event::on(
             UrlManager::class,

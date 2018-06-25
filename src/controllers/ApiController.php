@@ -165,7 +165,11 @@ class ApiController extends Controller
             $entries[] = $data;
         }
 
+        $device->setFieldValues(['lastRecording' => $raw]);
 
+        if(!Craft::$app->elements->saveElement($device)) {
+            throw new \Exception("Couldn't update device: " . print_r($device->getErrors(), true)); 
+        }
         
         return $this->asJson($entries);
     }
