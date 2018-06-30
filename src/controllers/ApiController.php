@@ -19,6 +19,9 @@ use craft\web\Controller;
 use craft\helpers\Json;
 use craft\elements\Entry;
 
+use yii\web\BadRequestHttpException;
+use yii\web\ForbiddenHttpException;
+
 use Pusher\Pusher;
 
 /**
@@ -38,6 +41,14 @@ class ApiController extends Controller
      * @access protected
      */
     protected $allowAnonymous = ['index', 'do-something', 'record', 'provision'];
+
+    /**
+     * @var mixed
+     * 
+     * @access public 
+     */
+    public $requestJson;
+
 
     // Public Methods
     // =========================================================================
@@ -62,12 +73,17 @@ class ApiController extends Controller
         return $result;
     }
 
+    /**
+     * @return mixed
+     */
     public function actionProvision()
     {
         $this->requirePostRequest();
         
         $raw = Craft::$app->getRequest()->getRawBody();
-        $json = Json::decodeIfJson($raw);
+        $this->requestJson = Json::decodeIfJson($raw);
+
+        $this->requireAllowedDevice();
 
         $section = Craft::$app->sections->getSectionByHandle('devices');
         $entryTypes = $section->getEntryTypes();
@@ -78,18 +94,18 @@ class ApiController extends Controller
             'typeId' => $entryType->id,
             'fieldLayoutId' => $entryType->fieldLayoutId,
             'authorId' => 1,
-            'title' => $json['alias'],
+            'title' => $this->requestJson['alias'],
         ]);    
 
         $fieldValues = [
             'key' => uniqid(),
-            'serialNumber' => $json['serialNumber']
+            'serialNumber' => $this->requestJson['serialNumber']
         ];
 
         $entry->setFieldValues($fieldValues);
 
         if(Craft::$app->elements->saveElement($entry)) {
-            return $this->asJson($entry);
+            return $this->asJson(['deviceKey' => $entry->getFieldValue('key')]);
         } else {
             throw new \Exception("Couldn't save new device: " . print_r($entry->getErrors(), true)); 
         }
@@ -100,9 +116,9 @@ class ApiController extends Controller
         $this->requirePostRequest();
 
         $raw = Craft::$app->getRequest()->getRawBody();
-        $json = Json::decodeIfJson($raw);
+        $this->requestJson = Json::decodeIfJson($raw);
 
-        $key = $json['key'];
+        $key = $this->requestJson['key'];
 
         $device = Entry::find()
             ->section('devices')
@@ -120,7 +136,7 @@ class ApiController extends Controller
 
         $entries = [];
 
-        foreach ($json['records'] as $record) {
+        foreach ($this->requestJson['records'] as $record) {
             $entry = new Entry([
                 'sectionId' => $section->id,
                 'typeId' => $entryType->id,
@@ -172,5 +188,51 @@ class ApiController extends Controller
         }
         
         return $this->asJson($entries);
+    }
+
+    /**
+     * @throws BadRequestHttpException
+     * @throws ForbiddenHttpException
+     */
+    public function requireAllowedDevice()
+    {
+        if (!array_key_exists('provisionProfile', $this->requestJson)) {
+            throw new BadRequestHttpException('Provision profile reference was not provided.');
+        }
+
+        if (!array_key_exists('serialNumber', $this->requestJson)) {
+            throw new BadRequestHttpException('Serial number was not provided.');
+        }
+
+        $serialNumber = $this->requestJson['serialNumber'];
+        $whitelist = Craft::$app->entries->getEntryById($this->requestJson['provisionProfile']);
+
+        if (!$whitelist) {
+            throw new BadRequestHttpException('Could not find a provision profile.');
+        }
+
+        $whitelistRules = $whitelist->getFieldValue('whitelistRules')->all();
+
+        foreach ($whitelistRules as $rule) {
+            $rulePattern = $rule->rule;
+
+            switch ($rule->getType()->handle) {
+                case 'exactMatch':
+                    if ($rulePattern == $serialNumber) {
+                        return;
+                    }
+                    break;
+                case 'prefix':
+                    $prefixLength = strlen($rulePattern);
+
+                    if (substr($serialNumber, 0, $prefixLength) === $rulePattern) {
+                        return;
+                    }
+                    break;
+                default:
+            }
+        }
+
+        throw new ForbiddenHttpException('This device has not been whitelisted for provisioning.');
     }
 }

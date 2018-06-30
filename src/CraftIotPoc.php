@@ -21,6 +21,7 @@ use craft\services\Elements;
 use craft\events\ElementEvent;
 use craft\web\UrlManager;
 use craft\events\RegisterUrlRulesEvent;
+use craft\elements\Entry;
 
 use yii\base\Event;
 
@@ -92,6 +93,10 @@ class CraftIotPoc extends Plugin
             Elements::class,
             Elements::EVENT_BEFORE_SAVE_ELEMENT,
             function (ElementEvent $event) {
+                if (!$event->element instanceof Entry) {
+                    return;
+                }
+
                 $section = Craft::$app->sections->getSectionByHandle('devices');
 
                 if ($section->id != $event->element->sectionId) {
