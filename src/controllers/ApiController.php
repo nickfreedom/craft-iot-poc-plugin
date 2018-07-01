@@ -99,7 +99,8 @@ class ApiController extends Controller
 
         $fieldValues = [
             'key' => uniqid(),
-            'serialNumber' => $this->requestJson['serialNumber']
+            'serialNumber' => $this->requestJson['serialNumber'],
+            'provisionProfile' => [ $this->requestJson['provisionProfile'] ]
         ];
 
         $entry->setFieldValues($fieldValues);
