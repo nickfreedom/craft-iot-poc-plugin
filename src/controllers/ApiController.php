@@ -40,7 +40,7 @@ class ApiController extends Controller
      *         The actions must be in 'kebab-case'
      * @access protected
      */
-    protected $allowAnonymous = ['index', 'do-something', 'record', 'provision'];
+    protected $allowAnonymous = ['index', 'do-something', 'record', 'provision', 'control'];
 
     /**
      * @var mixed
@@ -189,6 +189,34 @@ class ApiController extends Controller
         }
         
         return $this->asJson($entries);
+    }
+
+    public function actionControl()
+    {
+        $this->requirePostRequest();
+
+        $raw = Craft::$app->getRequest()->getRawBody();
+        $this->requestJson = Json::decodeIfJson($raw);
+
+        $key = $this->requestJson['key'];
+
+        $device = Entry::find()
+            ->section('devices')
+            ->limit(1)
+            ->key($key)
+            ->one();
+
+        if (!$device) {
+            throw new \Exception("Couldn't find device with key: " . print_r($key, true)); 
+        }
+
+        $device->setFieldValues(['lastRemoteControl' => $raw]);
+
+        if(!Craft::$app->elements->saveElement($device)) {
+            throw new \Exception("Couldn't update device: " . print_r($device->getErrors(), true)); 
+        }
+        
+        return $raw;
     }
 
     /**
