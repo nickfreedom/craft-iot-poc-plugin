@@ -40,7 +40,7 @@ class ApiController extends Controller
      *         The actions must be in 'kebab-case'
      * @access protected
      */
-    protected $allowAnonymous = ['index', 'do-something', 'record', 'provision', 'control'];
+    protected $allowAnonymous = ['index', 'do-something', 'record', 'provision', 'control', 'poll'];
 
     /**
      * @var mixed
@@ -121,15 +121,7 @@ class ApiController extends Controller
 
         $key = $this->requestJson['key'];
 
-        $device = Entry::find()
-            ->section('devices')
-            ->limit(1)
-            ->key($key)
-            ->one();
-
-        if (!$device) {
-            throw new \Exception("Couldn't find device with key: " . print_r($key, true)); 
-        }
+        $device = $this->getDevice($key);
 
         $section = Craft::$app->sections->getSectionByHandle('timeseries');
         $entryTypes = $section->getEntryTypes();
@@ -200,15 +192,7 @@ class ApiController extends Controller
 
         $key = $this->requestJson['key'];
 
-        $device = Entry::find()
-            ->section('devices')
-            ->limit(1)
-            ->key($key)
-            ->one();
-
-        if (!$device) {
-            throw new \Exception("Couldn't find device with key: " . print_r($key, true)); 
-        }
+        $device = $this->getDevice($key);
 
         $device->setFieldValues(['lastRemoteControl' => $raw]);
 
@@ -217,6 +201,31 @@ class ApiController extends Controller
         }
         
         return $raw;
+    }
+
+
+    public function actionPoll()
+    {
+        $key = Craft::$app->getRequest()->getQueryParam('device');
+
+        if (!$key) {
+            throw new BadRequestHttpException('Device not specified.');
+        }
+
+        $device = $this->getDevice($key);
+
+        $control = $device->getFieldValue('lastRemoteControl');
+        $device->setFieldValues(['lastRemoteControl' => '']);
+
+        if(!Craft::$app->elements->saveElement($device)) {
+            throw new \Exception("Couldn't clear last control request from device: " . print_r($device->getErrors(), true)); 
+        }
+
+        if ($control == '') {
+            return $this->asJson([ 'key' => $key, 'commands' => [] ]);
+        }
+
+        return $control;
     }
 
     /**
@@ -263,5 +272,23 @@ class ApiController extends Controller
         }
 
         throw new ForbiddenHttpException('This device has not been whitelisted for provisioning.');
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function getDevice($key)
+    {
+        $device = Entry::find()
+            ->section('devices')
+            ->limit(1)
+            ->key($key)
+            ->one();
+
+        if (!$device) {
+            throw new BadRequestHttpException("Couldn't find device with key: " . print_r($key, true)); 
+        }
+
+        return $device;
     }
 }
