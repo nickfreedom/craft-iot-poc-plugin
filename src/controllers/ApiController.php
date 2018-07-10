@@ -105,11 +105,33 @@ class ApiController extends Controller
 
         $entry->setFieldValues($fieldValues);
 
-        if(Craft::$app->elements->saveElement($entry)) {
-            return $this->asJson(['deviceKey' => $entry->getFieldValue('key')]);
-        } else {
+        if(!Craft::$app->elements->saveElement($entry)) {
             throw new \Exception("Couldn't save new device: " . print_r($entry->getErrors(), true)); 
         }
+
+        $options = array(
+            'cluster' => 'us2',
+            'encrypted' => true
+        );
+        
+        $pusher = new Pusher(
+            '9e129f0beb6fd9dbe0d9',
+            'bc1e7e8b2c1143dc9cb4',
+            '549019',
+            $options
+        );
+        
+        $data = [
+            'title' => $entry->title,
+            'detailUrl' => "/device/{$entry->id}",
+            'serialNumber' => $entry->getFieldValue('serialNumber'),
+            'key' => $entry->getFieldValue('key'),
+            'lastUpdate' => $entry->dateUpdated->format('Y-m-d H:i:s')
+        ];
+
+        $pusher->trigger('device', 'provision', $data);
+
+        return $this->asJson(['deviceKey' => $entry->getFieldValue('key')]);
     }
 
     public function actionRecord()
@@ -149,29 +171,12 @@ class ApiController extends Controller
                 throw new \Exception("Couldn't save new time series: " . print_r($entry->getErrors(), true)); 
             }
 
-            $options = array(
-                'cluster' => 'us2',
-                'encrypted' => true
-            );
-            
-            $pusher = new Pusher(
-                '9e129f0beb6fd9dbe0d9',
-                'bc1e7e8b2c1143dc9cb4',
-                '549019',
-                $options
-            );
-            
-            $data = [
+            $entries[] = [
                 'timestamp' => $entry->postDate->format('U'),
                 'device' => $entry->getFieldValue('device')->one()->getFieldValue('key'),
                 'signal' => $entry->getFieldValue('signalName'),
                 'value' => $entry->getFieldValue('signalValue')
             ];
-
-
-            $pusher->trigger('my-channel', 'my-event', $data);
-
-            $entries[] = $data;
         }
 
         $device->setFieldValues(['lastRecording' => $raw]);
@@ -179,7 +184,29 @@ class ApiController extends Controller
         if(!Craft::$app->elements->saveElement($device)) {
             throw new \Exception("Couldn't update device: " . print_r($device->getErrors(), true)); 
         }
+
+        $options = array(
+            'cluster' => 'us2',
+            'encrypted' => true
+        );
+
+        $pusher = new Pusher(
+            '9e129f0beb6fd9dbe0d9',
+            'bc1e7e8b2c1143dc9cb4',
+            '549019',
+            $options
+        );
         
+        $data = [
+            'title' => $device->title,
+            'lastUpdate' => $device->dateUpdated->format('Y-m-d H:i:s'),
+            'serialNumber' => $device->getFieldValue('serialNumber'),
+            'key' => $device->getFieldValue('key'),
+            'lastRecording' => $device->getFieldValue('lastRecording')
+        ];
+
+        $pusher->trigger('device', 'record', $data);
+
         return $this->asJson($entries);
     }
 
