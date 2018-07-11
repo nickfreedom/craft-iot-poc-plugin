@@ -212,8 +212,6 @@ class ApiController extends Controller
 
     public function actionControl()
     {
-        $this->requirePostRequest();
-
         $raw = Craft::$app->getRequest()->getRawBody();
         $this->requestJson = Json::decodeIfJson($raw);
 
