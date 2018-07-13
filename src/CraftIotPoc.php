@@ -22,6 +22,7 @@ use craft\events\ElementEvent;
 use craft\web\UrlManager;
 use craft\events\RegisterUrlRulesEvent;
 use craft\elements\Entry;
+use craft\elements\User;
 
 use yii\base\Event;
 
@@ -93,7 +94,17 @@ class CraftIotPoc extends Plugin
             Elements::class,
             Elements::EVENT_BEFORE_SAVE_ELEMENT,
             function (ElementEvent $event) {
-                if (!$event->element instanceof Entry) {
+                if (!$event->element instanceof Entry && !$event->element instanceof User) {
+                    return;
+                }
+
+                $key = uniqid();
+
+                if ($event->element instanceof User) {
+                    if (!$event->element->getFieldValue('key')) {
+                        $event->element->setFieldValues(['key' => $key]);
+                    }
+
                     return;
                 }
 
@@ -104,7 +115,7 @@ class CraftIotPoc extends Plugin
                 }
 
                 if (!$event->element->getFieldValue('key')) {
-                    $event->element->setFieldValues(['key' => uniqid()]);
+                    $event->element->setFieldValues(['key' => $key]);
                 }
             }
         );
