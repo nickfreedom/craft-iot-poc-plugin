@@ -4,7 +4,6 @@
  *
  * Companion Plugin for Craft IoT PoC Presentation.
  *
- * @link      https://github.com/nickfreedom
  * @copyright Copyright (c) 2018 Nick Le Guillou
  */
 
@@ -64,31 +63,6 @@ class CraftIotPoc extends Plugin
         self::$plugin = $this;
 
         Craft::$app->view->registerTwigExtension(new CraftIotPocTwigExtension());
-
-        Event::on(
-            UrlManager::class,
-            UrlManager::EVENT_REGISTER_SITE_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
-                $event->rules['siteActionTrigger1'] = 'craft-iot-poc/api';
-            }
-        );
-
-        Event::on(
-            UrlManager::class,
-            UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            function (RegisterUrlRulesEvent $event) {
-                $event->rules['cpActionTrigger1'] = 'craft-iot-poc/api/do-something';
-            }
-        );
-
-        Event::on(
-            Plugins::class,
-            Plugins::EVENT_AFTER_INSTALL_PLUGIN,
-            function (PluginEvent $event) {
-                if ($event->plugin === $this) {
-                }
-            }
-        );
 
         Event::on(
             Elements::class,

@@ -4,7 +4,6 @@
  *
  * Companion Plugin for Craft IoT PoC Presentation.
  *
- * @link      https://github.com/nickfreedom
  * @copyright Copyright (c) 2018 Nick Le Guillou
  */
 
@@ -18,6 +17,7 @@ use Craft;
 use craft\web\Controller;
 use craft\helpers\Json;
 use craft\elements\Entry;
+use craft\elements\User;
 
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
@@ -31,6 +31,7 @@ use Pusher\Pusher;
  */
 class ApiController extends Controller
 {
+    const ERROR_INVALID_CREDENTIALS = 'Invalid credentials.';
 
     // Protected Properties
     // =========================================================================
@@ -40,7 +41,7 @@ class ApiController extends Controller
      *         The actions must be in 'kebab-case'
      * @access protected
      */
-    protected $allowAnonymous = ['index', 'do-something', 'record', 'provision', 'control', 'poll'];
+    protected $allowAnonymous = ['record', 'provision', 'control', 'poll', 'get-api-key-for-user'];
 
     /**
      * @var mixed
@@ -52,28 +53,51 @@ class ApiController extends Controller
 
     // Public Methods
     // =========================================================================
+    
 
     /**
+     * Request a user's API Key from their Craft user account.
+     * 
+     * Request params:
+     * - username (required): Craft username or email
+     * - password (required): Craft password
+     * 
+     * @throws BadRequestHttpException
      * @return mixed
      */
-    public function actionIndex()
-    {
-        $result = 'Welcome to the ApiController actionIndex() method';
+    public function actionGetApiKeyForUser() {
+        $username = Craft::$app->getRequest()->getQueryParam('username');
+        $password = Craft::$app->getRequest()->getQueryParam('password');
 
-        return $result;
+        if (!$username || !$password) {
+            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+        }
+
+        $user = Craft::$app->getUsers()->getUserByUsernameOrEmail($username);
+
+        if (!$user) {
+            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+        }
+
+        if (!$user->authenticate($password)) {
+            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+        }
+        
+        return $this->asJson(['apiKey' => $user->getFieldValue('key')]);
     }
 
     /**
-     * @return mixed
-     */
-    public function actionDoSomething()
-    {
-        $result = 'Welcome to the ApiController actionDoSomething() method';
-
-        return $result;
-    }
-
-    /**
+     * Provision a device to start sending data to Craft.
+     * 
+     * Request params:
+     * - provisionProvile (required): The entry ID of the Provision Profile that will validate the seial number
+     * - serialNumber (required): The device serial number that matches a Provision Profile rule.
+     * - apiKey (required): The API token provided to the Craft user in their profile.
+     * - alias (optional): A user-friendly display name for the device. Defaults to serialNumber if missing.
+     * 
+     * @throws BadRequestHttpException
+     * @throws ForbiddenHttpException
+     * 
      * @return mixed
      */
     public function actionProvision()
@@ -83,7 +107,9 @@ class ApiController extends Controller
         $raw = Craft::$app->getRequest()->getRawBody();
         $this->requestJson = Json::decodeIfJson($raw);
 
-        $this->requireAllowedDevice();
+        $provisionProfile = $this->requireAllowedDevice();
+
+        $serialNumber = $this->requestJson['serialNumber'];
 
         $section = Craft::$app->sections->getSectionByHandle('devices');
         $entryTypes = $section->getEntryTypes();
@@ -93,14 +119,16 @@ class ApiController extends Controller
             'sectionId' => $section->id,
             'typeId' => $entryType->id,
             'fieldLayoutId' => $entryType->fieldLayoutId,
-            'authorId' => 1,
-            'title' => $this->requestJson['alias'],
+            'authorId' => $provisionProfile->authorId,
+            'title' => isset($this->requestJson['alias'])
+                ? $this->requestJson['alias']
+                : $serialNumber,
         ]);    
 
         $fieldValues = [
             'key' => uniqid(),
-            'serialNumber' => $this->requestJson['serialNumber'],
-            'provisionProfile' => [ $this->requestJson['provisionProfile'] ]
+            'serialNumber' => $serialNumber,
+            'provisionProfile' => [ $provisionProfile->id ]
         ];
 
         $entry->setFieldValues($fieldValues);
@@ -109,6 +137,8 @@ class ApiController extends Controller
             throw new \Exception("Couldn't save new device: " . print_r($entry->getErrors(), true)); 
         }
 
+
+        /** TODO: MOVE THIS INTO ANOTHER PLUGIN */
         $options = array(
             'cluster' => 'us2',
             'encrypted' => true
@@ -129,11 +159,28 @@ class ApiController extends Controller
             'lastUpdate' => $entry->dateUpdated->format('Y-m-d H:i:s')
         ];
 
-        $pusher->trigger('device', 'provision', $data);
+        $pusher->trigger("device_{$this->requestJson['apiKey']}", 'provision', $data);
+        /** END TODO */
+
+
 
         return $this->asJson(['deviceKey' => $entry->getFieldValue('key')]);
     }
 
+    /**
+     * Record a signal from a device
+     *
+     * Request params:
+     * - apiKey (required): The API token provided to the Craft user in their profile.
+     * - deviceKey (required): The UUID that was generated for the device when it was provisioned.
+     * - records (required): A JSON-formatted list of signals to record as Timeseries entries.
+     *      [{ signal: 'mySignalName1', value: 'theValue1' }, { signal: 'mySignalName2', value: 'theValue2' }, { ... }]
+     * 
+     * @throws Exception
+     * @throws BadRequestHttpException
+     * 
+     * @return mixed
+     */
     public function actionRecord()
     {
         $this->requirePostRequest();
@@ -141,9 +188,20 @@ class ApiController extends Controller
         $raw = Craft::$app->getRequest()->getRawBody();
         $this->requestJson = Json::decodeIfJson($raw);
 
-        $key = $this->requestJson['key'];
+        if (!array_key_exists('apiKey', $this->requestJson)) {
+            throw new BadRequestHttpException('API key was not provided.');
+        }
 
-        $device = $this->getDevice($key);
+        $user = User::Find()
+            ->key($this->requestJson['apiKey'])
+            ->one();
+
+        if (!$user) {
+            throw new BadRequestHttpException('Invalid credentials provided.');
+        }
+
+        $deviceKey = $this->requestJson['deviceKey'];
+        $device = $this->getDevice($deviceKey, $user->id);
 
         $section = Craft::$app->sections->getSectionByHandle('timeseries');
         $entryTypes = $section->getEntryTypes();
@@ -156,7 +214,7 @@ class ApiController extends Controller
                 'sectionId' => $section->id,
                 'typeId' => $entryType->id,
                 'fieldLayoutId' => $entryType->fieldLayoutId,
-                'authorId' => 1,
+                'authorId' => $user->id,
             ]);    
 
             $fieldValues = [
@@ -185,6 +243,7 @@ class ApiController extends Controller
             throw new \Exception("Couldn't update device: " . print_r($device->getErrors(), true)); 
         }
 
+        /** TODO: Move this to its own Plugin */
         $options = array(
             'cluster' => 'us2',
             'encrypted' => true
@@ -205,19 +264,41 @@ class ApiController extends Controller
             'lastRecording' => $device->getFieldValue('lastRecording')
         ];
 
-        $pusher->trigger('device', 'record', $data);
+        $pusher->trigger("device_{$this->requestJson['apiKey']}", 'record', $data);
+        /** end TODO */
 
         return $this->asJson($entries);
     }
 
+    /**
+     * Send a remote control request to a device
+     * - apiKey (required): The API token provided to the Craft user in their profile.
+     * - deviceKey (required): The UUID that was generated for the device when it was provisioned.
+     * - commands (required): A JSON-formatted list of commands to execute on the device.
+     *      [{ command: 'myCommand', params: ... }, { command: 'myCommand2', params: ... }]
+     * 
+     * @return mixed
+     */
     public function actionControl()
     {
         $raw = Craft::$app->getRequest()->getRawBody();
         $this->requestJson = Json::decodeIfJson($raw);
 
-        $key = $this->requestJson['key'];
+        if (!array_key_exists('apiKey', $this->requestJson)) {
+            throw new BadRequestHttpException('API key was not provided.');
+        }
 
-        $device = $this->getDevice($key);
+        $user = User::Find()
+            ->key($this->requestJson['apiKey'])
+            ->one();
+
+        if (!$user) {
+            throw new BadRequestHttpException('Invalid credentials provided.');
+        }
+
+        $deviceKey = $this->requestJson['deviceKey'];
+
+        $device = $this->getDevice($deviceKey, $user->id);
 
         $device->setFieldValues(['lastRemoteControl' => $raw]);
 
@@ -228,16 +309,41 @@ class ApiController extends Controller
         return $raw;
     }
 
-
+    /**
+     * Get a device's last remote control request. Called by devices to act on requests sent by actionControl()
+     * 
+     * Request params:
+     * - apiKey (required): The API token provided to the Craft user in their profile.
+     * - device (required): The UUID that was generated for the device when it was provisioned.
+     * 
+     * @throws Exception
+     * @throws BadRequestHttpException
+     * 
+     * @return void
+     */
     public function actionPoll()
     {
-        $key = Craft::$app->getRequest()->getQueryParam('device');
+        $apiKey = Craft::$app->getRequest()->getQueryParam('apiKey');
 
-        if (!$key) {
+        if (!$apiKey) {
+            throw new BadRequestHttpException('API key was not provided.');
+        }
+
+        $user = User::Find()
+            ->key($apiKey)
+            ->one();
+
+        if (!$user) {
+            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+        }
+
+        $deviceKey = Craft::$app->getRequest()->getQueryParam('device');
+
+        if (!$deviceKey) {
             throw new BadRequestHttpException('Device not specified.');
         }
 
-        $device = $this->getDevice($key);
+        $device = $this->getDevice($deviceKey, $user->id);
 
         $control = $device->getFieldValue('lastRemoteControl');
         $device->setFieldValues(['lastRemoteControl' => '']);
@@ -247,13 +353,15 @@ class ApiController extends Controller
         }
 
         if ($control == '') {
-            return $this->asJson([ 'key' => $key, 'commands' => [] ]);
+            return $this->asJson([ 'key' => $deviceKey, 'commands' => [] ]);
         }
 
         return $control;
     }
 
     /**
+     * Determines whether the current device request should be allowed.
+     * 
      * @throws BadRequestHttpException
      * @throws ForbiddenHttpException
      */
@@ -267,11 +375,27 @@ class ApiController extends Controller
             throw new BadRequestHttpException('Serial number was not provided.');
         }
 
+        if (!array_key_exists('apiKey', $this->requestJson)) {
+            throw new BadRequestHttpException('API key was not provided.');
+        }
+
+        $user = User::Find()
+            ->key($this->requestJson['apiKey'])
+            ->one();
+
+        if (!$user) {
+            throw new BadRequestHttpException('Invalid credentials provided.');
+        }
+
         $serialNumber = $this->requestJson['serialNumber'];
-        $whitelist = Craft::$app->entries->getEntryById($this->requestJson['provisionProfile']);
+        $whitelist = Entry::find()
+            ->section('provisionProfiles')
+            ->id($this->requestJson['provisionProfile'])
+            ->authorId($user->id)
+            ->one();
 
         if (!$whitelist) {
-            throw new BadRequestHttpException('Could not find a provision profile.');
+            throw new BadRequestHttpException('Could not find a provision profile that matches the credentials provided.');
         }
 
         $whitelistRules = $whitelist->getFieldValue('whitelistRules')->all();
@@ -282,14 +406,14 @@ class ApiController extends Controller
             switch ($rule->getType()->handle) {
                 case 'exactMatch':
                     if ($rulePattern == $serialNumber) {
-                        return;
+                        return $whitelist;
                     }
                     break;
                 case 'prefix':
                     $prefixLength = strlen($rulePattern);
 
                     if (substr($serialNumber, 0, $prefixLength) === $rulePattern) {
-                        return;
+                        return $whitelist;
                     }
                     break;
                 default:
@@ -300,18 +424,26 @@ class ApiController extends Controller
     }
 
     /**
-     * @throws Exception
+     * Fetch a Device entry while ensuring it's owned by the requester.
+     * 
+     * @param string $deviceKey the UUID that was generated for the device when it was provisioned.
+     * @param string $userId the Craft ID for the user.
+     * 
+     * @throws BadRequestHttpException
+     * 
+     * @return Entry
      */
-    public function getDevice($key)
+    public function getDevice($deviceKey, $userId)
     {
         $device = Entry::find()
             ->section('devices')
             ->limit(1)
-            ->key($key)
+            ->key($deviceKey)
+            ->authorId($userId)
             ->one();
 
         if (!$device) {
-            throw new BadRequestHttpException("Couldn't find device with key: " . print_r($key, true)); 
+            throw new BadRequestHttpException('Could not find a devices that matches the credentials provided.'); 
         }
 
         return $device;
