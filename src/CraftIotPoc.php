@@ -9,9 +9,6 @@
 
 namespace nickleguillou\craftiotpoc;
 
-use nickleguillou\craftiotpoc\twigextensions\CraftIoTPocTwigExtension;
-
-
 use Craft;
 use craft\base\Plugin;
 use craft\services\Plugins;
@@ -24,6 +21,8 @@ use craft\elements\Entry;
 use craft\elements\User;
 
 use yii\base\Event;
+
+use nickleguillou\craftiotpoc\models\Settings;
 
 /**
  * Class CraftIotPoc
@@ -43,6 +42,11 @@ class CraftIotPoc extends Plugin
      */
     public static $plugin;
 
+    /**
+     * @var mixed
+     */
+    public static $settings;
+
     // Public Properties
     // =========================================================================
 
@@ -51,8 +55,17 @@ class CraftIotPoc extends Plugin
      */
     public $schemaVersion = '1.0.0';
 
+    // Protected Methods
+    // =========================================================================
+    protected function createSettingsModel()
+    {
+        return new Settings();
+    }
+
     // Public Methods
     // =========================================================================
+
+
 
     /**
      * @inheritdoc
@@ -61,8 +74,6 @@ class CraftIotPoc extends Plugin
     {
         parent::init();
         self::$plugin = $this;
-
-        Craft::$app->view->registerTwigExtension(new CraftIotPocTwigExtension());
 
         Event::on(
             Elements::class,

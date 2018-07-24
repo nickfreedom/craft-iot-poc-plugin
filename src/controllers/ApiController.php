@@ -42,7 +42,30 @@ class ApiController extends Controller
      * @access protected
      */
     protected $allowAnonymous = ['record', 'provision', 'control', 'poll', 'get-api-key-for-user'];
+    
+    /**
+     * @var Pusher
+     * 
+     * @access protected
+     */
+    protected $pusher;
 
+    public $enableCsrfValidation = false;
+
+    /**
+     * @var array
+     * 
+     * @access protected
+     */
+    protected $pusherMappings;
+
+    /**
+     * @var array The defined settings for the CraftIoTPoC plugin
+     * 
+     * @access public
+     */
+    public $pluginSettings;
+    
     /**
      * @var mixed
      * 
@@ -54,6 +77,26 @@ class ApiController extends Controller
     // Public Methods
     // =========================================================================
     
+    /**
+     * @return void
+     */
+    public function init()
+    {
+        $this->pluginSettings = CraftIoTPoc::getInstance()->getSettings();
+
+        if (!$this->pluginSettings->pusherEnabled) {
+            return;
+        }
+
+        $this->pusher = new Pusher(
+            $this->pluginSettings->pusherSettings['key'],
+            $this->pluginSettings->pusherSettings['secret'],
+            $this->pluginSettings->pusherSettings['appId'],
+            $this->pluginSettings->pusherSettings['options']
+        );
+
+        $this->pusherMappings = $this->pluginSettings->pusherMappings;
+    }
 
     /**
      * Request a user's API Key from their Craft user account.
@@ -137,32 +180,17 @@ class ApiController extends Controller
             throw new \Exception("Couldn't save new device: " . print_r($entry->getErrors(), true)); 
         }
 
-
-        /** TODO: MOVE THIS INTO ANOTHER PLUGIN */
-        $options = array(
-            'cluster' => 'us2',
-            'encrypted' => true
-        );
-        
-        $pusher = new Pusher(
-            '9e129f0beb6fd9dbe0d9',
-            'bc1e7e8b2c1143dc9cb4',
-            '549019',
-            $options
-        );
-        
-        $data = [
-            'title' => $entry->title,
-            'detailUrl' => "/device/{$entry->id}",
-            'serialNumber' => $entry->getFieldValue('serialNumber'),
-            'key' => $entry->getFieldValue('key'),
-            'lastUpdate' => $entry->dateUpdated->format('Y-m-d H:i:s')
-        ];
-
-        $pusher->trigger("device_{$this->requestJson['apiKey']}", 'provision', $data);
-        /** END TODO */
-
-
+        if ($this->pluginSettings->pusherEnabled) {
+            $data = [
+                'title' => $entry->title,
+                'detailUrl' => "/device/{$entry->id}",
+                'serialNumber' => $entry->getFieldValue('serialNumber'),
+                'key' => $entry->getFieldValue('key'),
+                'lastUpdate' => $entry->dateUpdated->format('Y-m-d H:i:s')
+            ];
+    
+            $this->publish('device', 'Provision', $data);
+        }
 
         return $this->asJson(['deviceKey' => $entry->getFieldValue('key')]);
     }
@@ -243,29 +271,17 @@ class ApiController extends Controller
             throw new \Exception("Couldn't update device: " . print_r($device->getErrors(), true)); 
         }
 
-        /** TODO: Move this to its own Plugin */
-        $options = array(
-            'cluster' => 'us2',
-            'encrypted' => true
-        );
+        if ($this->pluginSettings->pusherEnabled) {
+            $data = [
+                'title' => $device->title,
+                'lastUpdate' => $device->dateUpdated->format('Y-m-d H:i:s'),
+                'serialNumber' => $device->getFieldValue('serialNumber'),
+                'key' => $device->getFieldValue('key'),
+                'lastRecording' => $device->getFieldValue('lastRecording')
+            ];
 
-        $pusher = new Pusher(
-            '9e129f0beb6fd9dbe0d9',
-            'bc1e7e8b2c1143dc9cb4',
-            '549019',
-            $options
-        );
-        
-        $data = [
-            'title' => $device->title,
-            'lastUpdate' => $device->dateUpdated->format('Y-m-d H:i:s'),
-            'serialNumber' => $device->getFieldValue('serialNumber'),
-            'key' => $device->getFieldValue('key'),
-            'lastRecording' => $device->getFieldValue('lastRecording')
-        ];
-
-        $pusher->trigger("device_{$this->requestJson['apiKey']}", 'record', $data);
-        /** end TODO */
+            $this->publish('device', 'Record', $data);
+        }
 
         return $this->asJson($entries);
     }
@@ -277,12 +293,20 @@ class ApiController extends Controller
      * - commands (required): A JSON-formatted list of commands to execute on the device.
      *      [{ command: 'myCommand', params: ... }, { command: 'myCommand2', params: ... }]
      * 
+     * @throws Exception
+     * @throws BadRequestHttpException
+     * 
      * @return mixed
      */
     public function actionControl()
     {
         $raw = Craft::$app->getRequest()->getRawBody();
         $this->requestJson = Json::decodeIfJson($raw);
+
+        // Used to handle OPTIONS requests
+        if (!$this->requestJson) {
+            return $raw;
+        }
 
         if (!array_key_exists('apiKey', $this->requestJson)) {
             throw new BadRequestHttpException('API key was not provided.');
@@ -384,7 +408,7 @@ class ApiController extends Controller
             ->one();
 
         if (!$user) {
-            throw new BadRequestHttpException('Invalid credentials provided.');
+            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
         }
 
         $serialNumber = $this->requestJson['serialNumber'];
@@ -447,5 +471,23 @@ class ApiController extends Controller
         }
 
         return $device;
+    }
+
+    /**
+     * Publish an event to Pusher
+     *
+     * @param string $channel
+     * @param string $event
+     * @param mixed $data
+     * 
+     * @return void
+     */
+    public function publish($channel, $event, $data)
+    {
+        $channelPrefix = $this->pusherMappings['device']['channelName'];
+        $channelName = "{$channelPrefix}_{$this->requestJson['apiKey']}";
+        $eventName = $this->pusherMappings['device']["event${event}"];
+
+        $this->pusher->trigger($channelName, $eventName, $data);
     }
 }
