@@ -20,9 +20,9 @@ This plugin allows Craft to act as an aggregate point in an IoT solution. It exp
 
 **Devices** represent the data source within Craft. Configuration fields are provided to help describe the type of data being stored, such as units and precision. This allows Craft to manage data from multiple sources with varied data types - with no coding and minimal configuration - while also normalizing the data for consumption by front-end applications.
 
-![Image of Entry Types and Data Flow](assets/Entry_Types.png)
-
 **Signals** represent the raw transmitted data, stored using a [time series](https://en.wikipedia.org/wiki/Time_series) methodology.
+
+![Image of Entry Types and Data Flow](assets/Entry_Types.png)
 
 ## Configuring the IoT PoC Plugin
 
