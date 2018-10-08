@@ -1,8 +1,8 @@
 # Using Craft IoT PoC
 
-* [Understanding The Utility Model for IoT Solutions](#Understanding%20The%20Utility%20Model%20for%20IoT%20Solutions)
-* [Craft as a Data Aggregator and Configurator](#Craft%20as%20a%20Data%20Aggregator%20and%20Configurator)
-* [Configuring the IoT PoC Plugin](#Configuring%20the%20IoT%20PoC%20Plugin)
+* [Understanding The Utility Model for IoT Solutions](#Understanding-The-Utility-Model-for-IoT-Solutions)
+* [Craft as a Data Aggregator and Configurator](#Craft-as-a-Data-Aggregator-and-Configurator)
+* [Configuring the IoT PoC Plugin](#Configuring-the-IoT-PoC-Plugin)
 
 ## Understanding The Utility Model for IoT Solutions
 
