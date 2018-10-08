@@ -1,43 +1,34 @@
 # Craft IoT PoC plugin for Craft CMS 3.x
 
-Companion Plugin for Craft IoT PoC Presentation.
+## Summary
 
-![Screenshot](resources/img/plugin-logo.png)
+This plugin is a proof-of-concept based on Nick Le Guillou's 2018 DotAll presentation, [Building IoT Solutions Using Core CMS Features](http://dotall.com/sessions/building-iot-solutions-using-core-cms-features). It demonstrates how Craft can be used as a headless, IoT platform to store and configure data. 
+
+**NOTE: This plugin is intended for experimental and prototying purposes only, and is *not* recommended for production use.**
 
 ## Requirements
 
-This plugin requires Craft CMS 3.0.0-beta.23 or later.
+Craft CMS 3.0.12 or later.
+
+## Optional Prerequisites
+
+* [Element API](https://github.com/craftcms/element-api) version 2.5.4 or later, for accessing data from a front-end application (eg. React, Vue, Angular, etc).
+* Account credentials for [Pusher](https://pusher.com), if building a real-time front-end application.
 
 ## Installation
 
-To install the plugin, follow these instructions.
+To install the plugin, search for "Craft IoT PoC" in the Craft Plugin Store, or install manually using composer.
 
-1. Open your terminal and go to your Craft project:
-
-        cd /path/to/project
-
-2. Then tell Composer to load the plugin:
-
-        composer require nickfreedom/craft-iot-poc
-
-3. In the Control Panel, go to Settings → Plugins and click the “Install” button for Craft IoT PoC.
-
-## Craft IoT PoC Overview
-
--Insert text here-
-
-## Configuring Craft IoT PoC
-
--Insert text here-
+```
+composer require nickfreedom/craft-iot-poc
+```
 
 ## Using Craft IoT PoC
 
--Insert text here-
+Read the documentation at [docs/configuration-and-use](docs/configuration-and-use).
 
-## Craft IoT PoC Roadmap
+## Questions, Issues, Feedback
 
-Some things to do, and ideas for potential features:
-
-* Release it
-
-Brought to you by [Nick Le Guillou](https://github.com/nickfreedom)
+* [Submit a GitHub Issue](https://github.com/nickfreedom/craft-iot-poc-plugin/issues/new).
+* [Create a Pull Request](https://github.com/nickfreedom/craft-iot-poc-plugin/compare).
+* Send an email to nick.leguillou@gmail.com.
