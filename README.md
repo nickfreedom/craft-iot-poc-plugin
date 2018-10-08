@@ -25,7 +25,7 @@ composer require nickfreedom/craft-iot-poc
 
 ## Using Craft IoT PoC
 
-Read the documentation at [docs/configuration-and-use.md](docs/configuration-and-use).
+Read the documentation at [docs/configuration-and-use](docs/configuration-and-use.md).
 
 ## Questions, Issues, Feedback
 
