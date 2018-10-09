@@ -6,9 +6,9 @@ use Craft;
 use craft\db\Migration;
 
 /**
- * m181009_140200_BaseInstall migration.
+ * Install migration.
  */
-class m181009_140200_BaseInstall extends Migration
+class Install extends Migration
 {
     /**
      * @inheritdoc
@@ -23,7 +23,7 @@ class m181009_140200_BaseInstall extends Migration
      */
     public function safeDown()
     {
-        echo "m181009_140200_BaseInstall cannot be reverted.\n";
+        echo "Install cannot be reverted.\n";
         return false;
     }
 }
