@@ -3,7 +3,22 @@
 namespace nickleguillou\craftiotpoc\migrations;
 
 use Craft;
+
+use craft\helpers\ArrayHelper;
 use craft\db\Migration;
+use craft\base\Field;
+
+use craft\models\Section;
+use craft\models\Section_SiteSettings;
+use craft\models\FieldGroup;
+use craft\models\FieldLayoutTab;
+use craft\models\MatrixBlockType;
+
+use craft\fields\PlainText;
+use craft\fields\Number;
+use craft\fields\Dropdown;
+use craft\fields\Matrix;
+
 use nickleguillou\craftiotpoc\CraftIoTPoc;
 
 /**
@@ -40,25 +55,25 @@ class Install extends Migration
         $this->createSection([
             'name' => CraftIotPoc::SECTION_NAME_DEVICES,
             'handle' => CraftIotPoc::SECTION_HANDLE_DEVICES,
-            'type' => \craft\models\Section::TYPE_CHANNEL
+            'type' => Section::TYPE_CHANNEL
         ]);
 
         $this->createSection([
             'name' => CraftIotPoc::SECTION_NAME_PROVISION_PROFILES,
             'handle' => CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES,
-            'type' => \craft\models\Section::TYPE_CHANNEL
+            'type' => Section::TYPE_CHANNEL
         ]);
 
         $this->createSection([
             'name' => CraftIotPoc::SECTION_NAME_TIME_SERIES,
             'handle' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
-            'type' => \craft\models\Section::TYPE_CHANNEL
+            'type' => Section::TYPE_CHANNEL
         ]);
 
         // Add Field Group
         // =========================================================================
         if (is_null($this->fieldGroup)) {
-            $this->fieldGroup = new \craft\models\FieldGroup();
+            $this->fieldGroup = new FieldGroup();
             $this->fieldGroup->name = CraftIoTPoC::FIELD_GROUP_NAME;
             Craft::$app->getFields()->saveGroup($this->fieldGroup);
         }
@@ -134,12 +149,12 @@ class Install extends Migration
                     'blockName' => 'Round',
                     'blockHandle' => 'iotRound',
                     'fields' => [
-                        new \craft\fields\PlainText([
+                        new PlainText([
                             'name' => 'Target Signal',
                             'handle' => 'iotTargetSignal',
                             'required' => true,
                         ]),
-                        new \craft\fields\Number([
+                        new Number([
                             'name' => 'Precision',
                             'handle' => 'iotPrecision',
                             'required' => true,
@@ -161,12 +176,12 @@ class Install extends Migration
                     'blockName' => 'Temperature',
                     'blockHandle' => 'iotTemperature',
                     'fields' => [
-                        new \craft\fields\PlainText([
+                        new PlainText([
                             'name' => 'Target Signal',
                             'handle' => 'iotTargetSignal',
                             'required' => true,
                         ]),
-                        new \craft\fields\Dropdown([
+                        new Dropdown([
                             'name' => 'Base Unit',
                             'handle' => 'iotBaseUnit',
                             'required' => true,
@@ -182,7 +197,7 @@ class Install extends Migration
                                 ]
                             ]
                         ]),
-                        new \craft\fields\Dropdown([
+                        new Dropdown([
                             'name' => 'Convert To',
                             'handle' => 'iotConvertTo',
                             'required' => true,
@@ -207,12 +222,12 @@ class Install extends Migration
                     'blockName' => 'Pressure',
                     'blockHandle' => 'iotPressure',
                     'fields' => [
-                        new \craft\fields\PlainText([
+                        new PlainText([
                             'name' => 'Target Signal',
                             'handle' => 'iotTargetSignal',
                             'required' => true,
                         ]),
-                        new \craft\fields\Dropdown([
+                        new Dropdown([
                             'name' => 'Base Unit',
                             'handle' => 'iotBaseUnit',
                             'required' => true,
@@ -228,7 +243,7 @@ class Install extends Migration
                                 ],
                             ]
                         ]),
-                        new \craft\fields\Dropdown([
+                        new Dropdown([
                             'name' => 'Convert To',
                             'handle' => 'iotConvertTo',
                             'options' => [
@@ -253,12 +268,12 @@ class Install extends Migration
                     'blockName' => 'Humidity',
                     'blockHandle' => 'iotHumidity',
                     'fields' => [
-                        new \craft\fields\PlainText([
+                        new PlainText([
                             'name' => 'Target Signal',
                             'handle' => 'iotTargetSignal',
                             'required' => true,
                         ]),
-                        new \craft\fields\Dropdown([
+                        new Dropdown([
                             'name' => 'Base Unit',
                             'handle' => 'iotBaseUnit',
                             'required' => true,
@@ -270,7 +285,7 @@ class Install extends Migration
                                 ],
                             ]
                         ]),
-                        new \craft\fields\Dropdown([
+                        new Dropdown([
                             'name' => 'Convert To',
                             'handle' => 'iotConvertTo',
                             'options' => [
@@ -295,7 +310,7 @@ class Install extends Migration
                     'blockName' => 'Prefix',
                     'blockHandle' => 'iotPrefix',
                     'fields' => [
-                        new \craft\fields\PlainText([
+                        new PlainText([
                             'name' => 'Rule',
                             'handle' => 'iotRule',
                             'required' => true,
@@ -306,7 +321,7 @@ class Install extends Migration
                     'blockName' => 'Exact Match',
                     'blockHandle' => 'iotExactMatch',
                     'fields' => [
-                        new \craft\fields\PlainText([
+                        new PlainText([
                             'name' => 'Rule',
                             'handle' => 'iotRule',
                             'required' => true,
@@ -348,6 +363,83 @@ class Install extends Migration
             'singleField' => $field->id
         ]);
 
+        // Entry Type Field Layouts
+        // =========================================================================
+
+        // Devices
+        $this->setFieldLayout([
+            'section' => CraftIotPoc::SECTION_HANDLE_DEVICES,
+            'entryType' => CraftIotPoc::SECTION_HANDLE_DEVICES,
+            'tabs' => [
+                new FieldLayoutTab([
+                    'name' => 'Device Info',
+                    'fields' => [
+                        $this->setFieldRequired(Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_SERIAL_NUMBER)),
+                        $this->setFieldRequired(Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_KEY)),
+                        Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_LAST_RECORDING),
+                        Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_LAST_REMOTE_CONTROL)
+
+                    ]
+                ]),
+                new FieldLayoutTab([
+                    'name' => 'Device Config',
+                    'fields' => [
+                        Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_PROVISION_PROFILE),
+                        Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_ALLOW_REMOTE_CONTROL)
+                    ]
+                ]),
+                new FieldLayoutTab([
+                    'name' => 'Signal Type Mapping',
+                    'fields' => [
+                        Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_SIGNAL_TYPES_AND_UNITS),
+                    ]
+                ]),
+                new FieldLayoutTab([
+                    'name' => 'Signal Formatting',
+                    'fields' => [
+                        Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_SIGNAL_TRANSFORMS),
+                    ]
+                ])
+            ]
+        ]);
+
+        // Provision Profiles
+        $this->setFieldLayout([
+            'section' => CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES,
+            'entryType' => CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES,
+            'tabs' => [
+                new FieldLayoutTab([
+                    'name' => 'Settings',
+                    'fields' => [
+                        Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_WHITELIST_RULES),
+
+                    ]
+                ]),
+                new FieldLayoutTab([
+                    'name' => 'Provisioned Devices',
+                    'fields' => [
+                        Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_PROVISONED_DEVICES),
+
+                    ]
+                ])
+            ]
+        ]);
+
+        // Time Series
+        $this->setFieldLayout([
+            'section' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
+            'entryType' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
+            'tabs' => [
+                new FieldLayoutTab([
+                    'name' => 'Entry',
+                    'fields' => [
+                        $this->setFieldRequired(Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_DEVICE)),
+                        $this->setFieldRequired(Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_SIGNAL_NAME)),
+                        $this->setFieldRequired(Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_SIGNAL_VALUE)),
+                    ]
+                ])
+            ]
+        ]);
     }
 
     /**
@@ -510,7 +602,7 @@ class Install extends Migration
 
         if (isset($settings['blockTypes']) && count($settings['blockTypes']) > 0) {
             foreach ($settings['blockTypes'] as $blockType) {
-                $blockTypes[] = new \craft\models\MatrixBlockType([
+                $blockTypes[] = new MatrixBlockType([
                     'name' => $blockType['blockName'],
                     'handle' => $blockType['blockHandle'],
                     'fields' => $blockType['fields']
@@ -518,7 +610,7 @@ class Install extends Migration
             }
         }
 
-        $new = new \craft\fields\Matrix([
+        $new = new Matrix([
             'groupId' => $this->fieldGroup->id,
             'name' => $name,
             'handle' => $handle,
@@ -616,12 +708,12 @@ class Install extends Migration
             return;
         }
 
-        $new = new \craft\models\Section([
+        $new = new Section([
             'name' => $name,
             'handle' => $handle,
             'type' => $type,
             'siteSettings' => [
-                new \craft\models\Section_SiteSettings([
+                new Section_SiteSettings([
                     'siteId' => Craft::$app->sites->getPrimarySite()->id,
                     'enabledByDefault' => true,
                     'hasUrls' => true,
@@ -631,10 +723,7 @@ class Install extends Migration
             ]
         ]);
 
-        Craft::$app->getSections()->saveSection($new, true);
-
-        Craft::error(var_export($new->getErrors(), true));
-        
+        Craft::$app->getSections()->saveSection($new);
     }
 
     /**
@@ -650,5 +739,43 @@ class Install extends Migration
         }
 
         Craft::$app->getSections()->deleteSection($section);
+    }
+
+    /**
+     * Set a field layout for a section's entry type
+     * @param array $settings the field layout settings
+     *      - section : the section handle
+     *      - entryType : the entry type handle
+     *      - tabs : an array of field layout tabs
+     *          - tabName
+     *          - fields: a list of field handles
+     */
+    public function setFieldLayout($settings) {
+        $section = $settings['section'];
+        $entryType = $settings['entryType'];
+        $tabs = $settings['tabs'];
+        
+        $sectionEntryTypes = Craft::$app->getSections()->getSectionByHandle($section)
+            ->getEntryTypes();
+        
+        $update = ArrayHelper::firstValue(ArrayHelper::filterByValue(
+            $sectionEntryTypes,
+            'handle',
+            $entryType
+        ))->getFieldLayout();
+
+        $update->setTabs($tabs);
+
+        Craft::$app->getFields()->saveLayout($update);
+    }
+
+    /**
+     * Helper function to make a field required (for adding fields to layouts)
+     * @param Field $field
+     * @return Field
+     */
+    public function setFieldRequired($field, $required = true): Field {
+        $field->required = $required;
+        return $field;
     }
 }
