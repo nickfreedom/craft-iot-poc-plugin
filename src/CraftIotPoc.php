@@ -41,6 +41,9 @@ class CraftIotPoc extends Plugin
     const PLUGIN_MANY_TO_MANY = 'manytomany';
     const PLUGIN_INCOGNITO_FIELD = 'incognito-field';
 
+    // User Field Layout Tab
+    const USER_LAYOUT_TAB_NAME_API = 'IoT API';
+
     // Sections
     const SECTION_NAME_DEVICES = 'IoT Devices';
     const SECTION_HANDLE_DEVICES = 'iotDevices';

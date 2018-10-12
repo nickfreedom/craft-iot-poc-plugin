@@ -367,7 +367,7 @@ class Install extends Migration
         // =========================================================================
 
         // Devices
-        $this->setFieldLayout([
+        $this->setEntryTypeFieldLayout([
             'section' => CraftIotPoc::SECTION_HANDLE_DEVICES,
             'entryType' => CraftIotPoc::SECTION_HANDLE_DEVICES,
             'tabs' => [
@@ -404,7 +404,7 @@ class Install extends Migration
         ]);
 
         // Provision Profiles
-        $this->setFieldLayout([
+        $this->setEntryTypeFieldLayout([
             'section' => CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES,
             'entryType' => CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES,
             'tabs' => [
@@ -426,7 +426,7 @@ class Install extends Migration
         ]);
 
         // Time Series
-        $this->setFieldLayout([
+        $this->setEntryTypeFieldLayout([
             'section' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
             'entryType' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
             'tabs' => [
@@ -440,6 +440,18 @@ class Install extends Migration
                 ])
             ]
         ]);
+
+        // User Field Layout
+        // =========================================================================
+        $this->addUserFieldLayoutTab(
+            new FieldLayoutTab([
+                'name' => CraftIotPoc::USER_LAYOUT_TAB_NAME_API,
+                'fields' => [
+                    $this->setFieldRequired(Craft::$app->getFields()->getFieldByHandle(CraftIotPoc::FIELD_HANDLE_KEY), false)
+                ]
+            ])
+        );
+
     }
 
     /**
@@ -447,6 +459,8 @@ class Install extends Migration
      */
     public function safeDown()
     {
+        $this->removeUserFieldLayoutTab(CraftIotPoc::USER_LAYOUT_TAB_NAME_API);
+
         $this->deleteSection(CraftIoTPoc::SECTION_HANDLE_DEVICES);
         $this->deleteSection(CraftIoTPoc::SECTION_HANDLE_PROVISION_PROFILES);
         $this->deleteSection(CraftIoTPoc::SECTION_HANDLE_TIME_SERIES);
@@ -750,7 +764,7 @@ class Install extends Migration
      *          - tabName
      *          - fields: a list of field handles
      */
-    public function setFieldLayout($settings) {
+    public function setEntryTypeFieldLayout($settings) {
         $section = $settings['section'];
         $entryType = $settings['entryType'];
         $tabs = $settings['tabs'];
@@ -763,6 +777,41 @@ class Install extends Migration
             'handle',
             $entryType
         ))->getFieldLayout();
+
+        $update->setTabs($tabs);
+
+        Craft::$app->getFields()->saveLayout($update);
+    }
+
+    /**
+     * Add a field layout tab for users
+     * @param array $settings the field layout tab settings
+     *      - tabName
+     *      - fields: a list of field handles
+     */
+    public function addUserFieldLayoutTab($settings) {
+        $update = Craft::$app->getFields()->getLayoutByType('craft\\elements\\User');
+        $tabs = $update->getTabs();
+        array_push($tabs, $settings);
+        $update->setTabs($tabs);
+
+        Craft::$app->getFields()->saveLayout($update);
+    }
+
+    /**
+     * Remove a field layout tab for users
+     * @param string $tabName
+     */
+    public function removeUserFieldLayoutTab($tabName) {
+        $update = Craft::$app->getFields()->getLayoutByType('craft\\elements\\User');
+        $tabs = $update->getTabs();
+
+        foreach ($tabs as $index => $tab) {
+            if ($tab->name == $tabName) {
+                unset($tabs[$index]);
+                break;
+            }
+        }
 
         $update->setTabs($tabs);
 
