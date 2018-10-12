@@ -149,21 +149,21 @@ class CraftIotPoc extends Plugin
                 $key = uniqid();
 
                 if ($event->element instanceof User) {
-                    if (!$event->element->getFieldValue('key')) {
-                        $event->element->setFieldValues(['key' => $key]);
+                    if (!$event->element->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY)) {
+                        $event->element->setFieldValues([CraftIotPoc::FIELD_HANDLE_KEY => $key]);
                     }
 
                     return;
                 }
 
-                $section = Craft::$app->sections->getSectionByHandle('devices');
+                $section = Craft::$app->sections->getSectionByHandle(CraftIotPoc::SECTION_HANDLE_DEVICES);
 
                 if ($section->id != $event->element->sectionId) {
                     return;
                 }
 
-                if (!$event->element->getFieldValue('key')) {
-                    $event->element->setFieldValues(['key' => $key]);
+                if (!$event->element->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY)) {
+                    $event->element->setFieldValues([CraftIotPoc::FIELD_HANDLE_KEY => $key]);
                 }
             }
         );

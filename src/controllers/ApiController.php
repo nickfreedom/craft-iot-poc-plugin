@@ -16,6 +16,8 @@ use nickleguillou\craftiotpoc\CraftIotPoc;
 use Craft;
 use craft\web\Controller;
 use craft\helpers\Json;
+use craft\helpers\ArrayHelper;
+
 use craft\elements\Entry;
 use craft\elements\User;
 
@@ -126,7 +128,7 @@ class ApiController extends Controller
             throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
         }
         
-        return $this->asJson(['apiKey' => $user->getFieldValue('key')]);
+        return $this->asJson(['apiKey' => $user->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY)]);
     }
 
     /**
@@ -154,9 +156,15 @@ class ApiController extends Controller
 
         $serialNumber = $this->requestJson['serialNumber'];
 
-        $section = Craft::$app->sections->getSectionByHandle('devices');
+        $section = Craft::$app->sections->getSectionByHandle(CraftIotPoc::SECTION_HANDLE_DEVICES);
+        
         $entryTypes = $section->getEntryTypes();
-        $entryType = reset($entryTypes);
+        
+        $$entryType = ArrayHelper::firstValue(ArrayHelper::filterByValue(
+            $entryTypes,
+            'handle',
+            CraftIotPoc::SECTION_HANDLE_DEVICES
+        ));
 
         $entry = new Entry([
             'sectionId' => $section->id,
@@ -169,9 +177,9 @@ class ApiController extends Controller
         ]);    
 
         $fieldValues = [
-            'key' => uniqid(),
-            'serialNumber' => $serialNumber,
-            'provisionProfile' => [ $provisionProfile->id ]
+            CraftIotPoc::FIELD_HANDLE_KEY => uniqid(),
+            CraftIotPoc::FIELD_HANDLE_SERIAL_NUMBER => $serialNumber,
+            CraftIotPoc::FIELD_HANDLE_PROVISION_PROFILE => [ $provisionProfile->id ]
         ];
 
         $entry->setFieldValues($fieldValues);
@@ -180,19 +188,21 @@ class ApiController extends Controller
             throw new \Exception("Couldn't save new device: " . print_r($entry->getErrors(), true)); 
         }
 
+        $key = $entry->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY);
+
         if ($this->pluginSettings->pusherEnabled) {
             $data = [
                 'title' => $entry->title,
-                'detailUrl' => "/device/{$entry->id}",
-                'serialNumber' => $entry->getFieldValue('serialNumber'),
-                'key' => $entry->getFieldValue('key'),
+                'detailUrl' => "/" . CraftIotPoc::SECTION_HANDLE_DEVICES . "/{$entry->id}",
+                'serialNumber' => $serialNumber,
+                'key' => $key,
                 'lastUpdate' => $entry->dateUpdated->format('Y-m-d H:i:s')
             ];
     
             $this->publish('device', 'Provision', $data);
         }
 
-        return $this->asJson(['deviceKey' => $entry->getFieldValue('key')]);
+        return $this->asJson(['deviceKey' => $key]);
     }
 
     /**
@@ -231,7 +241,7 @@ class ApiController extends Controller
         $deviceKey = $this->requestJson['deviceKey'];
         $device = $this->getDevice($deviceKey, $user->id);
 
-        $section = Craft::$app->sections->getSectionByHandle('timeseries');
+        $section = Craft::$app->sections->getSectionByHandle(CraftIotPoc::SECTION_HANDLE_TIME_SERIES);
         $entryTypes = $section->getEntryTypes();
         $entryType = reset($entryTypes);
 
@@ -246,9 +256,9 @@ class ApiController extends Controller
             ]);    
 
             $fieldValues = [
-                'device' => [ $device->id ],
-                'signalName' => $record['signal'],
-                'signalValue' => $record['value']
+                CraftIotPoc::FIELD_HANDLE_DEVICE => [ $device->id ],
+                CraftIotPoc::FIELD_HANDLE_SIGNAL_NAME => $record['signal'],
+                CraftIotPoc::FIELD_HANDLE_SIGNAL_VALUE => $record['value']
             ];
 
             $entry->setFieldValues($fieldValues);
@@ -259,13 +269,13 @@ class ApiController extends Controller
 
             $entries[] = [
                 'timestamp' => $entry->postDate->format('U'),
-                'device' => $entry->getFieldValue('device')->one()->getFieldValue('key'),
-                'signal' => $entry->getFieldValue('signalName'),
-                'value' => $entry->getFieldValue('signalValue')
+                'device' => $entry->getFieldValue(CraftIotPoc::FIELD_HANDLE_DEVICE)->one()->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY),
+                'signal' => $entry->getFieldValue(CraftIotPoc::FIELD_HANDLE_SIGNAL_NAME),
+                'value' => $entry->getFieldValue(CraftIotPoc::FIELD_HANDLE_SIGNAL_VALUE)
             ];
         }
 
-        $device->setFieldValues(['lastRecording' => $raw]);
+        $device->setFieldValues([CraftIotPoc::FIELD_HANDLE_LAST_RECORDING => $raw]);
 
         if(!Craft::$app->elements->saveElement($device)) {
             throw new \Exception("Couldn't update device: " . print_r($device->getErrors(), true)); 
@@ -275,9 +285,9 @@ class ApiController extends Controller
             $data = [
                 'title' => $device->title,
                 'lastUpdate' => $device->dateUpdated->format('Y-m-d H:i:s'),
-                'serialNumber' => $device->getFieldValue('serialNumber'),
-                'key' => $device->getFieldValue('key'),
-                'lastRecording' => $device->getFieldValue('lastRecording')
+                'serialNumber' => $device->getFieldValue(CraftIotPoc::FIELD_HANDLE_SERIAL_NUMBER),
+                'key' => $device->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY),
+                'lastRecording' => $device->getFieldValue(CraftIotPoc::FIELD_HANDLE_LAST_RECORDING)
             ];
 
             $this->publish('device', 'Record', $data);
@@ -324,7 +334,7 @@ class ApiController extends Controller
 
         $device = $this->getDevice($deviceKey, $user->id);
 
-        $device->setFieldValues(['lastRemoteControl' => $raw]);
+        $device->setFieldValues([CraftIotPoc::FIELD_HANDLE_LAST_REMOTE_CONTROL => $raw]);
 
         if(!Craft::$app->elements->saveElement($device)) {
             throw new \Exception("Couldn't update device: " . print_r($device->getErrors(), true)); 
@@ -369,8 +379,8 @@ class ApiController extends Controller
 
         $device = $this->getDevice($deviceKey, $user->id);
 
-        $control = $device->getFieldValue('lastRemoteControl');
-        $device->setFieldValues(['lastRemoteControl' => '']);
+        $control = $device->getFieldValue(CraftIotPoc::FIELD_HANDLE_LAST_REMOTE_CONTROL);
+        $device->setFieldValues([CraftIotPoc::FIELD_HANDLE_LAST_REMOTE_CONTROL => '']);
 
         if(!Craft::$app->elements->saveElement($device)) {
             throw new \Exception("Couldn't clear last control request from device: " . print_r($device->getErrors(), true)); 
@@ -413,7 +423,7 @@ class ApiController extends Controller
 
         $serialNumber = $this->requestJson['serialNumber'];
         $whitelist = Entry::find()
-            ->section('provisionProfiles')
+            ->section(CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES)
             ->id($this->requestJson['provisionProfile'])
             ->authorId($user->id)
             ->one();
@@ -422,7 +432,7 @@ class ApiController extends Controller
             throw new BadRequestHttpException('Could not find a provision profile that matches the credentials provided.');
         }
 
-        $whitelistRules = $whitelist->getFieldValue('whitelistRules')->all();
+        $whitelistRules = $whitelist->getFieldValue(CraftIotPoc::FIELD_HANDLE_WHITELIST_RULES)->all();
 
         foreach ($whitelistRules as $rule) {
             $rulePattern = $rule->rule;
@@ -460,7 +470,7 @@ class ApiController extends Controller
     public function getDevice($deviceKey, $userId)
     {
         $device = Entry::find()
-            ->section('devices')
+            ->section(CraftIotPoc::SECTION_HANDLE_DEVICES)
             ->limit(1)
             ->key($deviceKey)
             ->authorId($userId)
