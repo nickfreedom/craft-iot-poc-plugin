@@ -34,6 +34,66 @@ use nickleguillou\craftiotpoc\models\Settings;
  */
 class CraftIotPoc extends Plugin
 {
+    // Constants
+    // =========================================================================
+
+    // Plugin Dependencies
+    const PLUGIN_MANY_TO_MANY = 'manytomany';
+    const PLUGIN_INCOGNITO_FIELD = 'incognito-field';
+
+    // Sections
+    const SECTION_NAME_DEVICES = 'IoT Devices';
+    const SECTION_HANDLE_DEVICES = 'iotDevices';
+
+    const SECTION_NAME_PROVISION_PROFILES = 'IoT Provision Profiles';
+    const SECTION_HANDLE_PROVISION_PROFILES = 'iotProvisionProfiles';
+
+    const SECTION_NAME_TIME_SERIES = 'IoT Time Series';
+    const SECTION_HANDLE_TIME_SERIES = 'iotTimeSeries';
+
+    // Field Groups
+    const FIELD_GROUP_NAME = 'IoT';
+    
+    // Fields
+    const FIELD_NAME_ALLOW_REMOTE_CONTROL = 'Allow Remote Control';
+    const FIELD_HANDLE_ALLOW_REMOTE_CONTROL = 'iotAllowRemoteControl';
+
+    const FIELD_NAME_DEVICE = 'Device';
+    const FIELD_HANDLE_DEVICE = 'iotDevice';
+
+    const FIELD_NAME_KEY = 'Key';
+    const FIELD_HANDLE_KEY = 'iotKey';
+
+    const FIELD_NAME_LAST_RECORDING = 'Last Recording';
+    const FIELD_HANDLE_LAST_RECORDING = 'iotLastRecording';
+
+    const FIELD_NAME_LAST_REMOTE_CONTROL = 'Last Remote Control';
+    const FIELD_HANDLE_LAST_REMOTE_CONTROL = 'iotLastRemoteControl';
+
+    const FIELD_NAME_PROVISION_PROFILE = 'Provision Profile';
+    const FIELD_HANDLE_PROVISION_PROFILE = 'iotProvisionProfile';
+
+    const FIELD_NAME_PROVISIONED_DEVICES = 'Provisioned Devices';
+    const FIELD_HANDLE_PROVISONED_DEVICES = 'iotProvisionedDevices';
+
+    const FIELD_NAME_SERIAL_NUMBER = 'Serial Number';
+    const FIELD_HANDLE_SERIAL_NUMBER = 'iotSerialNumber';
+
+    const FIELD_NAME_SIGNAL_NAME = 'Signal Name';
+    const FIELD_HANDLE_SIGNAL_NAME = 'iotSignalName';
+
+    const FIELD_NAME_SIGNAL_TRANSFORMS = 'Signal Transforms';
+    const FIELD_HANDLE_SIGNAL_TRANSFORMS = 'iotSignalTransforms';
+
+    const FIELD_NAME_SIGNAL_TYPES_AND_UNITS = 'Signal Types and Units';
+    const FIELD_HANDLE_SIGNAL_TYPES_AND_UNITS = 'iotSignalTypesAndUnits';
+
+    const FIELD_NAME_SIGNAL_VALUE = 'Signal Value';
+    const FIELD_HANDLE_SIGNAL_VALUE = 'iotSignalValue';
+
+    const FIELD_NAME_WHITELIST_RULES = 'Whitelist Rules';
+    const FIELD_HANDLE_WHITELIST_RULES = 'iotWhitelistRules';
+
     // Static Properties
     // =========================================================================
 
