@@ -146,7 +146,7 @@ class CraftIotPoc extends Plugin
                     return;
                 }
 
-                $key = uniqid();
+                $key = bin2hex(random_bytes(32));
 
                 if ($event->element instanceof User) {
                     if (!$event->element->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY)) {
