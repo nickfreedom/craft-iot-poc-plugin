@@ -128,7 +128,14 @@ class CraftIotPoc extends Plugin
     // Public Methods
     // =========================================================================
 
-
+    /**
+     * Generates an API key
+     * 
+     * @return string
+     */
+    public static function generateApiKey() {
+        return bin2hex(random_bytes(32));
+    }
 
     /**
      * @inheritdoc
@@ -146,7 +153,7 @@ class CraftIotPoc extends Plugin
                     return;
                 }
 
-                $key = bin2hex(random_bytes(32));
+                $key = self::generateApiKey();
 
                 if ($event->element instanceof User) {
                     if (!$event->element->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY)) {

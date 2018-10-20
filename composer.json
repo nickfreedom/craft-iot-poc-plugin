@@ -24,7 +24,7 @@
         }
     ],
     "require": {
-        "craftcms/cms": "^3.0.12",
+        "craftcms/cms": "^3.0.27.1",
         "pusher/pusher-php-server": "^3.0"
     },
     "autoload": {

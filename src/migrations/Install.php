@@ -12,6 +12,7 @@ use craft\models\Section;
 use craft\models\Section_SiteSettings;
 use craft\models\FieldGroup;
 use craft\models\FieldLayoutTab;
+use craft\models\FieldLayout;
 use craft\models\MatrixBlockType;
 
 use craft\fields\PlainText;
@@ -630,6 +631,7 @@ class Install extends Migration
             'handle' => $handle,
             'blockTypes' => $blockTypes
         ]);
+
         Craft::$app->getFields()->saveField($new);
     }
 
@@ -791,9 +793,18 @@ class Install extends Migration
      */
     public function addUserFieldLayoutTab($settings) {
         $update = Craft::$app->getFields()->getLayoutByType('craft\\elements\\User');
-        $tabs = $update->getTabs();
-        array_push($tabs, $settings);
-        $update->setTabs($tabs);
+
+        if (!$update->id) {
+            $update = new FieldLayout([
+                'type' => 'craft\\elements\\User',
+                'tabs' => [ $settings ]
+            ]);
+        } else {
+            $tabs = $update->getTabs();
+    
+            array_push($tabs, $settings);
+            $update->setTabs($tabs);
+        }
 
         Craft::$app->getFields()->saveLayout($update);
     }
@@ -805,6 +816,11 @@ class Install extends Migration
     public function removeUserFieldLayoutTab($tabName) {
         $update = Craft::$app->getFields()->getLayoutByType('craft\\elements\\User');
         $tabs = $update->getTabs();
+
+        if (count($tabs) < 1) {
+            // @TODO: Add a log to indicate no tabs were removed.
+            return;
+        }
 
         foreach ($tabs as $index => $tab) {
             if ($tab->name == $tabName) {

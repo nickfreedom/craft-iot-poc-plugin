@@ -52,6 +52,11 @@ class ApiController extends Controller
      */
     protected $pusher;
 
+    /**
+     * @var boolean
+     * 
+     * @access public
+     */
     public $enableCsrfValidation = false;
 
     /**
@@ -111,48 +116,49 @@ class ApiController extends Controller
      * @return mixed
      */
     public function actionGetApiKeyForUser() {
-        $username = Craft::$app->getRequest()->getQueryParam('username');
-        $password = Craft::$app->getRequest()->getQueryParam('password');
-
-        if (!$username || !$password) {
-            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
-        }
-
-        $user = Craft::$app->getUsers()->getUserByUsernameOrEmail($username);
-
-        if (!$user) {
-            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
-        }
-
-        if (!$user->authenticate($password)) {
-            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+        try {
+            $user = $this->getUserFromRequestParams();
+        } catch (\Exception $e) {
+            return $this->returnErrorJson($e);
         }
         
+        $key = $user->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY);
+        
+        if (!$key) {
+            $key = CraftIotPoc::generateApiKey();
+            $user->setFieldValue(CraftIotPoc::FIELD_HANDLE_KEY, $key);
+            Craft::$app->getElements()->saveElement($user);
+        }
+
         return $this->asJson(['apiKey' => $user->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY)]);
     }
 
     /**
      * Provision a device to start sending data to Craft.
      * 
-     * Request params:
-     * - provisionProvile (required): The entry ID of the Provision Profile that will validate the seial number
-     * - serialNumber (required): The device serial number that matches a Provision Profile rule.
-     * - apiKey (required): The API token provided to the Craft user in their profile.
-     * - alias (optional): A user-friendly display name for the device. Defaults to serialNumber if missing.
-     * 
-     * @throws BadRequestHttpException
-     * @throws ForbiddenHttpException
+     * @uses $_POST['provisionProvile'] (required): The entry ID of the Provision Profile that will validate the seial number
+     * @uses $_POST['serialNumber'] (required): The device serial number that matches a Provision Profile rule.
+     * @uses $_POST['apiKey'] (required): The API token provided to the Craft user in their profile.
+     * @uses $_POST['alias'] (optional): A user-friendly display name for the device. Defaults to $_POST['serialNumber'] if missing.
      * 
      * @return mixed
      */
     public function actionProvision()
     {
-        $this->requirePostRequest();
-        
+        try {
+            $this->requirePostRequest();
+        } catch (\Exception $e) {
+            return $this->returnErrorJson($e);
+        }
+
         $raw = Craft::$app->getRequest()->getRawBody();
         $this->requestJson = Json::decodeIfJson($raw);
 
-        $provisionProfile = $this->requireAllowedDevice();
+        try {
+            $provisionProfile = $this->requireAllowedDevice();
+        } catch (\Exception $e) {
+            return $this->returnErrorJson($e);
+        }
 
         $serialNumber = $this->requestJson['serialNumber'];
 
@@ -402,7 +408,7 @@ class ApiController extends Controller
     public function requireAllowedDevice()
     {
         if (!array_key_exists('provisionProfile', $this->requestJson)) {
-            throw new BadRequestHttpException('Provision profile reference was not provided.');
+            throw new BadRequestHttpException('Provision profile    .');
         }
 
         if (!array_key_exists('serialNumber', $this->requestJson)) {
@@ -484,6 +490,35 @@ class ApiController extends Controller
     }
 
     /**
+     * Fetch and return a Craft user using the request params
+     * 
+     * @uses $_GET['username']
+     * @uses $_GET['password']
+     * 
+     * @throws BadRequestHttpException
+     * 
+     * @return User
+     */
+    public function getUserFromRequestParams() {
+        $username = Craft::$app->getRequest()->getQueryParam('username');
+        $password = Craft::$app->getRequest()->getQueryParam('password');
+
+        if (!$username || !$password) {
+            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+        }
+
+        $user = Craft::$app->getUsers()->getUserByUsernameOrEmail($username);
+
+        if (!$user) {
+            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+        }
+
+        if (!$user->authenticate($password)) {
+            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+        }
+        return $user;
+    }
+    /**
      * Publish an event to Pusher
      *
      * @param string $channel
@@ -496,8 +531,30 @@ class ApiController extends Controller
     {
         $channelPrefix = $this->pusherMappings['device']['channelName'];
         $channelName = "{$channelPrefix}_{$this->requestJson['apiKey']}";
-        $eventName = $this->pusherMappings['device']["event${event}"];
+        $eventName = $this->pusherMappings['device']["event{$event}"];
 
         $this->pusher->trigger($channelName, $eventName, $data);
+    }
+
+    /**
+     * Builds a JSON object out of an error object, and sets the Craft response HTTP status code
+     * 
+     * @param Exception $error
+     * @return mixed
+     */
+    public function returnErrorJson($error) {
+        if (empty($error->statusCode)): throw $error; endif;
+        $statusCode = isset($error->statusCode) ? $error->statusCode : 400;
+
+        $responseBody = [
+            'error' => [
+                'code' => $statusCode,
+                'message' => $error->getMessage()
+            ]
+        ];
+
+        Craft::$app->response->setStatusCode($statusCode);
+        return $this->asJson($responseBody);
+
     }
 }
