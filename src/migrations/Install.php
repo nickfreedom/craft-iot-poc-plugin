@@ -368,7 +368,7 @@ class Install extends Migration
         // =========================================================================
 
         // Devices
-        $this->setEntryTypeFieldLayout([
+        $this->setEntryTypeAndFieldLayout([
             'section' => CraftIotPoc::SECTION_HANDLE_DEVICES,
             'entryType' => CraftIotPoc::SECTION_HANDLE_DEVICES,
             'tabs' => [
@@ -405,7 +405,7 @@ class Install extends Migration
         ]);
 
         // Provision Profiles
-        $this->setEntryTypeFieldLayout([
+        $this->setEntryTypeAndFieldLayout([
             'section' => CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES,
             'entryType' => CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES,
             'tabs' => [
@@ -427,9 +427,11 @@ class Install extends Migration
         ]);
 
         // Time Series
-        $this->setEntryTypeFieldLayout([
+        $this->setEntryTypeAndFieldLayout([
             'section' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
             'entryType' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
+            'hasTitleField' => false,
+            'titleFormat' => "{device.one.key}-{postDate|date('U')}-{signalName}",
             'tabs' => [
                 new FieldLayoutTab([
                     'name' => 'Entry',
@@ -762,11 +764,13 @@ class Install extends Migration
      * @param array $settings the field layout settings
      *      - section : the section handle
      *      - entryType : the entry type handle
+     *      - hasTitleField
+     *      - titleFormat
      *      - tabs : an array of field layout tabs
      *          - tabName
      *          - fields: a list of field handles
      */
-    public function setEntryTypeFieldLayout($settings) {
+    public function setEntryTypeAndFieldLayout($settings) {
         $section = $settings['section'];
         $entryType = $settings['entryType'];
         $tabs = $settings['tabs'];
@@ -774,15 +778,28 @@ class Install extends Migration
         $sectionEntryTypes = Craft::$app->getSections()->getSectionByHandle($section)
             ->getEntryTypes();
         
-        $update = ArrayHelper::firstValue(ArrayHelper::filterByValue(
+        $entryTypeUpdate = ArrayHelper::firstValue(ArrayHelper::filterByValue(
             $sectionEntryTypes,
             'handle',
             $entryType
-        ))->getFieldLayout();
+        ));
+        
+        if (isset($settings['hasTitleField'])) {
+            Craft::info("NPL - no title");
+            $entryTypeUpdate->hasTitleField = $settings['hasTitleField'];
+        }
+        
+        if (isset($settings['titleFormat'])) {
+            Craft::info("NPL - title format");
+            $entryTypeUpdate->titleFormat = $settings['titleFormat'];
+        }
 
-        $update->setTabs($tabs);
+        Craft::info("NPL - update\n\n".var_export($entryTypeUpdate->titleFormat, true));
+        Craft::$app->getSections()->saveEntryType($entryTypeUpdate);
 
-        Craft::$app->getFields()->saveLayout($update);
+        $fieldLayoutUpdate = $entryTypeUpdate->getFieldLayout();
+        $fieldLayoutUpdate->setTabs($tabs);
+        Craft::$app->getFields()->saveLayout($fieldLayoutUpdate);
     }
 
     /**
