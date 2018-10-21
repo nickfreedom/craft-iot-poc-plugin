@@ -431,7 +431,12 @@ class Install extends Migration
             'section' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
             'entryType' => CraftIotPoc::SECTION_HANDLE_TIME_SERIES,
             'hasTitleField' => false,
-            'titleFormat' => "{device.one.key}-{postDate|date('U')}-{signalName}",
+            'titleFormat' => sprintf(
+                "{%s.one.%s}-{postDate|date('U')}-{%s}",
+                CraftIotPoc::FIELD_HANDLE_DEVICE,
+                CraftIotPoc::FIELD_HANDLE_KEY,
+                CraftIotPoc::FIELD_HANDLE_SIGNAL_NAME
+            ),
             'tabs' => [
                 new FieldLayoutTab([
                     'name' => 'Entry',
