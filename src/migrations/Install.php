@@ -309,22 +309,22 @@ class Install extends Migration
             'blockTypes' => [
                 [
                     'blockName' => 'Prefix',
-                    'blockHandle' => 'iotPrefix',
+                    'blockHandle' => CraftIotPoc::MATRIX_BLOCK_HANDLE_PREFIX,
                     'fields' => [
                         new PlainText([
                             'name' => 'Rule',
-                            'handle' => 'iotRule',
+                            'handle' => CraftIotPoc::MATRIX_BLOCK_FIELD_HANDLE_RULE,
                             'required' => true,
                         ]),
                     ]
                 ],
                 [
                     'blockName' => 'Exact Match',
-                    'blockHandle' => 'iotExactMatch',
+                    'blockHandle' => CraftIotPoc::MATRIX_BLOCK_HANDLE_EXACT_MATCH,
                     'fields' => [
                         new PlainText([
                             'name' => 'Rule',
-                            'handle' => 'iotRule',
+                            'handle' => CraftIotPoc::MATRIX_BLOCK_FIELD_HANDLE_RULE,
                             'required' => true,
                         ]),
                     ]

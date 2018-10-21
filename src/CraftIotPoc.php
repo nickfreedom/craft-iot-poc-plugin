@@ -97,6 +97,12 @@ class CraftIotPoc extends Plugin
     const FIELD_NAME_WHITELIST_RULES = 'Whitelist Rules';
     const FIELD_HANDLE_WHITELIST_RULES = 'iotWhitelistRules';
 
+    // Matrix Blocks and Fields
+    // =========================================================================
+    const MATRIX_BLOCK_HANDLE_PREFIX = 'iotPrefix';
+    const MATRIX_BLOCK_HANDLE_EXACT_MATCH = 'iotExactMatch';
+    const MATRIX_BLOCK_FIELD_HANDLE_RULE = 'iotRule';
+
     // Static Properties
     // =========================================================================
 

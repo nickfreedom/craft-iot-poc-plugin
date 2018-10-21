@@ -23,6 +23,7 @@ use craft\elements\User;
 
 use yii\web\BadRequestHttpException;
 use yii\web\ForbiddenHttpException;
+use yii\web\NotFoundHttpException;
 
 use Pusher\Pusher;
 
@@ -108,11 +109,11 @@ class ApiController extends Controller
     /**
      * Request a user's API Key from their Craft user account.
      * 
-     * Request params:
-     * - username (required): Craft username or email
-     * - password (required): Craft password
+     * @todo Refactor to use session/cookie info instead of passing creds
      * 
-     * @throws BadRequestHttpException
+     * @uses $_GET['username'] (required): Craft username or email
+     * @uses $_GET['password'] (required): Craft password
+     * 
      * @return mixed
      */
     public function actionGetApiKeyForUser() {
@@ -130,15 +131,15 @@ class ApiController extends Controller
             Craft::$app->getElements()->saveElement($user);
         }
 
-        return $this->asJson(['apiKey' => $user->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY)]);
+        return $this->asJson(['apiKey' => $key]);
     }
 
     /**
      * Provision a device to start sending data to Craft.
      * 
+     * @uses $_POST['apiKey'] (required): The API token provided to the Craft user in their profile.
      * @uses $_POST['provisionProvile'] (required): The entry ID of the Provision Profile that will validate the seial number
      * @uses $_POST['serialNumber'] (required): The device serial number that matches a Provision Profile rule.
-     * @uses $_POST['apiKey'] (required): The API token provided to the Craft user in their profile.
      * @uses $_POST['alias'] (optional): A user-friendly display name for the device. Defaults to $_POST['serialNumber'] if missing.
      * 
      * @return mixed
@@ -147,65 +148,65 @@ class ApiController extends Controller
     {
         try {
             $this->requirePostRequest();
-        } catch (\Exception $e) {
-            return $this->returnErrorJson($e);
-        }
 
-        $raw = Craft::$app->getRequest()->getRawBody();
-        $this->requestJson = Json::decodeIfJson($raw);
+            $raw = Craft::$app->getRequest()->getRawBody();
+            $this->requestJson = Json::decodeIfJson($raw);
 
-        try {
+            if (is_string($this->requestJson)) {
+                throw new BadRequestHttpException('Invalid JSON.');
+            }
+
             $provisionProfile = $this->requireAllowedDevice();
+
+            $serialNumber = $this->requestJson['serialNumber'];
+
+            $section = Craft::$app->sections->getSectionByHandle(CraftIotPoc::SECTION_HANDLE_DEVICES);
+            
+            $entryTypes = $section->getEntryTypes();
+            
+            $entryType = ArrayHelper::firstValue(ArrayHelper::filterByValue(
+                $entryTypes,
+                'handle',
+                CraftIotPoc::SECTION_HANDLE_DEVICES
+            ));
+
+            $entry = new Entry([
+                'sectionId' => $section->id,
+                'typeId' => $entryType->id,
+                'fieldLayoutId' => $entryType->fieldLayoutId,
+                'authorId' => $provisionProfile->authorId,
+                'title' => isset($this->requestJson['alias'])
+                    ? $this->requestJson['alias']
+                    : $serialNumber,
+            ]);    
+
+            $fieldValues = [
+                CraftIotPoc::FIELD_HANDLE_KEY => CraftIotPoc::generateApiKey(),
+                CraftIotPoc::FIELD_HANDLE_SERIAL_NUMBER => $serialNumber,
+                CraftIotPoc::FIELD_HANDLE_PROVISION_PROFILE => [ $provisionProfile->id ]
+            ];
+
+            $entry->setFieldValues($fieldValues);
+
+            if(!Craft::$app->elements->saveElement($entry)) {
+                throw new \Exception("Couldn't save new device: " . print_r($entry->getErrors(), true)); 
+            }
+
+            $key = $entry->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY);
+
+            if ($this->pluginSettings->pusherEnabled) {
+                $data = [
+                    'title' => $entry->title,
+                    'detailUrl' => "/" . CraftIotPoc::SECTION_HANDLE_DEVICES . "/{$entry->id}",
+                    'serialNumber' => $serialNumber,
+                    'key' => $key,
+                    'lastUpdate' => $entry->dateUpdated->format('Y-m-d H:i:s')
+                ];
+        
+                $this->publish('device', 'Provision', $data);
+            }
         } catch (\Exception $e) {
             return $this->returnErrorJson($e);
-        }
-
-        $serialNumber = $this->requestJson['serialNumber'];
-
-        $section = Craft::$app->sections->getSectionByHandle(CraftIotPoc::SECTION_HANDLE_DEVICES);
-        
-        $entryTypes = $section->getEntryTypes();
-        
-        $$entryType = ArrayHelper::firstValue(ArrayHelper::filterByValue(
-            $entryTypes,
-            'handle',
-            CraftIotPoc::SECTION_HANDLE_DEVICES
-        ));
-
-        $entry = new Entry([
-            'sectionId' => $section->id,
-            'typeId' => $entryType->id,
-            'fieldLayoutId' => $entryType->fieldLayoutId,
-            'authorId' => $provisionProfile->authorId,
-            'title' => isset($this->requestJson['alias'])
-                ? $this->requestJson['alias']
-                : $serialNumber,
-        ]);    
-
-        $fieldValues = [
-            CraftIotPoc::FIELD_HANDLE_KEY => uniqid(),
-            CraftIotPoc::FIELD_HANDLE_SERIAL_NUMBER => $serialNumber,
-            CraftIotPoc::FIELD_HANDLE_PROVISION_PROFILE => [ $provisionProfile->id ]
-        ];
-
-        $entry->setFieldValues($fieldValues);
-
-        if(!Craft::$app->elements->saveElement($entry)) {
-            throw new \Exception("Couldn't save new device: " . print_r($entry->getErrors(), true)); 
-        }
-
-        $key = $entry->getFieldValue(CraftIotPoc::FIELD_HANDLE_KEY);
-
-        if ($this->pluginSettings->pusherEnabled) {
-            $data = [
-                'title' => $entry->title,
-                'detailUrl' => "/" . CraftIotPoc::SECTION_HANDLE_DEVICES . "/{$entry->id}",
-                'serialNumber' => $serialNumber,
-                'key' => $key,
-                'lastUpdate' => $entry->dateUpdated->format('Y-m-d H:i:s')
-            ];
-    
-            $this->publish('device', 'Provision', $data);
         }
 
         return $this->asJson(['deviceKey' => $key]);
@@ -407,20 +408,24 @@ class ApiController extends Controller
      */
     public function requireAllowedDevice()
     {
-        if (!array_key_exists('provisionProfile', $this->requestJson)) {
-            throw new BadRequestHttpException('Provision profile    .');
-        }
-
-        if (!array_key_exists('serialNumber', $this->requestJson)) {
-            throw new BadRequestHttpException('Serial number was not provided.');
+        if (!$this->requestJson) {
+            throw new BadRequestHttpException('No data provided.');
         }
 
         if (!array_key_exists('apiKey', $this->requestJson)) {
             throw new BadRequestHttpException('API key was not provided.');
         }
 
+        if (!array_key_exists('provisionProfile', $this->requestJson)) {
+            throw new BadRequestHttpException('Provision profile was not provided.');
+        }
+
+        if (!array_key_exists('serialNumber', $this->requestJson)) {
+            throw new BadRequestHttpException('Serial number was not provided.');
+        }
+
         $user = User::Find()
-            ->key($this->requestJson['apiKey'])
+            ->{CraftIotPoc::FIELD_HANDLE_KEY}($this->requestJson['apiKey'])
             ->one();
 
         if (!$user) {
@@ -430,26 +435,26 @@ class ApiController extends Controller
         $serialNumber = $this->requestJson['serialNumber'];
         $whitelist = Entry::find()
             ->section(CraftIotPoc::SECTION_HANDLE_PROVISION_PROFILES)
-            ->id($this->requestJson['provisionProfile'])
+            ->slug($this->requestJson['provisionProfile'])
             ->authorId($user->id)
             ->one();
 
         if (!$whitelist) {
-            throw new BadRequestHttpException('Could not find a provision profile that matches the credentials provided.');
+            throw new NotFoundHttpException('Could not find a provision profile that matches the credentials provided.');
         }
 
         $whitelistRules = $whitelist->getFieldValue(CraftIotPoc::FIELD_HANDLE_WHITELIST_RULES)->all();
 
         foreach ($whitelistRules as $rule) {
-            $rulePattern = $rule->rule;
+            $rulePattern = $rule->{CraftIotPoc::MATRIX_BLOCK_FIELD_HANDLE_RULE};
 
             switch ($rule->getType()->handle) {
-                case 'exactMatch':
+                case CraftIotPoc::MATRIX_BLOCK_HANDLE_EXACT_MATCH:
                     if ($rulePattern == $serialNumber) {
                         return $whitelist;
                     }
                     break;
-                case 'prefix':
+                case CraftIotPoc::MATRIX_BLOCK_HANDLE_PREFIX:
                     $prefixLength = strlen($rulePattern);
 
                     if (substr($serialNumber, 0, $prefixLength) === $rulePattern) {
@@ -504,17 +509,17 @@ class ApiController extends Controller
         $password = Craft::$app->getRequest()->getQueryParam('password');
 
         if (!$username || !$password) {
-            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+            throw new ForbiddenHttpException(self::ERROR_INVALID_CREDENTIALS);
         }
 
         $user = Craft::$app->getUsers()->getUserByUsernameOrEmail($username);
 
         if (!$user) {
-            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+            throw new ForbiddenHttpException(self::ERROR_INVALID_CREDENTIALS);
         }
 
         if (!$user->authenticate($password)) {
-            throw new BadRequestHttpException(self::ERROR_INVALID_CREDENTIALS);
+            throw new ForbiddenHttpException(self::ERROR_INVALID_CREDENTIALS);
         }
         return $user;
     }
