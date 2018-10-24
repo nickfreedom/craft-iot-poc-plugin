@@ -1,10 +1,8 @@
 openapi: 3.0.0
 info:
-  description: API Endpoints for Craft IoT PoC plugin
+  description: API Endpoints for Craft IoT PoC plugin. Once you have installed the plugin in your project you will have access to these endpoints through the URL https://your-domain.com/actions/craft-iot-poc/api.
   version: "1.0.0"
   title: Craft IoT PoC API
-servers:
-  - url: https://your-domain.com/actions/craft-iot-poc/api
 paths:
   /get-api-key-for-user:
     get:
