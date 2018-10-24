@@ -69,7 +69,7 @@ paths:
     post:
       tags:
         - devices
-      summary: Record device data
+      summary: Record device data.
       requestBody:
         content:
           application/json:
