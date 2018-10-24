@@ -1,1 +1,504 @@
+openapi: 3.0.0
+info:
+  description: API Endpoints for Craft IoT PoC plugin
+  version: "1.0.0"
+  title: Craft IoT PoC API
+servers:
+  - url: https://your-domain.com/actions/craft-iot-poc/api
+paths:
+  /get-api-key-for-user:
+    get:
+      tags:
+        - applications
+      summary: Fetch a user's API key.
+      parameters:
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: password
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 200 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCredentialsResponse'
+        '403':
+          description: 403 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /provision:
+    post:
+      tags:
+        - devices
+      summary: Provision a device.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionRequest'
+      responses:
+        '200':
+          description: 200 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvisionResponse'
+        '400':
+          description: 400 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
+        '403':
+          description: 403 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /record:
+    post:
+      tags:
+        - devices
+      summary: Record device data.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordRequest'
+      responses:
+        '200':
+          description: 200 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        '400':
+          description: 400 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '403':
+          description: 403 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 404 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /device-list:
+    get:
+      tags:
+        - applications
+      summary: Get a list of devices.
+      parameters:
+        - in: query
+          name: apiKey
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+            description: 200 Response
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/DeviceListResponse'
+        '400':
+          description: 400 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '403':
+          description: 403 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /device:
+    get:
+      tags:
+        - applications
+      summary: Geta device's details.
+      parameters:
+        - in: query
+          name: apiKey
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: deviceKey
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+            description: 200 Response
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/DeviceDetailResponse'
+        '400':
+          description: 400 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 403 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 404 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /control:
+    post:
+      tags:
+        - applications
+      summary: Issue a set of commands to a device.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ControlRequest'
+      responses:
+        '200':
+          description: 200 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlResponse'
+        '400':
+          description: 400 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '403':
+          description: 403 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 404 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /poll:
+    get:
+      tags:
+        - devices
+      summary: Fetch a list of commands to be executed on the device.
+      parameters:
+        - in: query
+          name: apiKey
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: deviceKey
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+            description: 200 Response
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/PollResponse'
+        '400':
+          description: 400 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 403 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 404 Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: string
+        message:
+          type: string
+          example: string
+    UserCredentialsResponse:
+      type: object
+      required:
+        - apiKey
+      properties:
+        apiKey:
+          type: string
+          example: string
+    ProvisionRequest:
+      type: object
+      required:
+        - apiKey
+        - provisionProfile
+        - serialNumber
+      properties:
+        apiKey:
+          type: string
+          description: A Craft user's API key
+          example: '368f7cddf2a45b5278754b988d1aad2e2777b24db747684c51cabf95914cb1bb'
+        provisionProfile:
+          type: string
+          description: Provision Profile entry slug
+          example: 'my-provisioned-devices'
+        serialNumber:
+          type: string
+          description: Device serial number
+          example: 'MYDEVICE-1234'
+        alias:
+          type: string
+          description: Human-readble identifier for device
+          example: 'My First Device'
+    ProvisionResponse:
+      type: object
+      required:
+        - deviceKey
+      properties:
+        deviceKey:
+          type: string
+          example: '368f7cddf2a45b5278754b988d1aad2e2777b24db747684c51cabf95914cb1bb'
+    RecordRequest:
+      type: object
+      required:
+        - apiKey
+        - deviceKey
+        - records
+      properties:
+        apiKey:
+          type: string
+          description: A Craft user's API key
+          example: '368f7cddf2a45b5278754b988d1aad2e2777b24db747684c51cabf95914cb1bb'
+        provisionProfile:
+          type: string
+          description: Device key
+          example: '368f7cddf2a45b5278754b988d1aad2e2777b24db747684c51cabf95914cb1bb'
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/Signal'
+    Signal:
+      type: object
+      required:
+        - signal
+        - value
+      properties:
+        signal:
+          type: string
+          example: 'string'
+        value:
+          type: string
+          example: 'string'
+    RecordResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/TimeSeries'
+    TimeSeries:
+      type: object
+      required:
+        - timestamp
+        - device
+        - signal
+        - value
+      properties:
+        timestamp:
+          type: integer
+          example: 1540099140
+        device:
+          type: string
+          example: '368f7cddf2a45b5278754b988d1aad2e2777b24db747684c51cabf95914cb1bb'
+        signal:
+          type: string
+          example: 'string'
+        value:
+          type: string
+          example: 'string'
+    DeviceListResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/Device'
+    Device:
+      type: object
+      required:
+        - title
+        - serialNumber
+        - key
+        - lastUpdate
+      properties:
+        title:
+          type: string
+          example: 'My First Device'
+        serialNumber:
+          type: string
+          example: 'MYDEVICE-1234'
+        key:
+          type: string
+          example: '368f7cddf2a45b5278754b988d1aad2e2777b24db747684c51cabf95914cb1bb'
+        lastUpdate:
+          type: string
+          description: Date format - YYYY-MM-DD HH:MM:SS
+          example: '2018-10-21 15:36:27'
+    DeviceDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/Device'
+        - type: object
+          required:
+            - lastRecording
+            - allowRemoteControl
+            - signalTypesAndUnits
+            - signalTransforms
+          properties:
+            lastRecording:
+              type: array
+              items:
+                $ref: "#/components/schemas/Signal"
+            allowRemoteControl:
+              type: boolean
+              description: Flag to indicate whether a device is able to receive commands.
+            signalTypesAndUnits:
+              type: array
+              items:
+                $ref: '#/components/schemas/SignalTypeAndUnits'
+            signalTransforms:
+                items:
+                  $ref: '#/components/schemas/SignalTransform'
+    SignalTypeAndUnits:
+      type: object
+      required:
+        - signal
+        - type
+        - baseUnit
+      properties:
+        signal:
+          type: string
+          example: 'temperatureSensor'
+        type:
+          type: string
+          example: 'temperature'
+        baseUnit:
+          $ref: '#/components/schemas/SignalUnit'
+        convertTo:
+          $ref: '#/components/schemas/SignalUnit'
+    SignalUnit:
+      type: object
+      required:
+        - label
+        - unit
+      properties:
+        label:
+          type: string
+          example: '°F'
+        unit:
+          type: string
+          example: 'fahrenheit'
+    SignalTransform:
+      type: object
+      properties:
+        signal:
+          type: string
+          example: 'temperatureSensor'
+        transforms:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transform'
+    Transform:
+      type: object
+      properties:
+        type:
+          type: string
+          example: 'round'
+        parameters:
+          type: object
+          example: { "precision": 3 }
+    ControlRequest:
+      type: object
+      required:
+        - apiKey
+        - deviceKey
+        - commands
+      properties:
+        apiKey:
+          type: string
+          description: A Craft user's API key
+          example: '368f7cddf2a45b5278754b988d1aad2e2777b24db747684c51cabf95914cb1bb'
+        provisionProfile:
+          type: string
+          description: Device key
+          example: '368f7cddf2a45b5278754b988d1aad2e2777b24db747684c51cabf95914cb1bb'
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/Command'
+    Command:
+      type: object
+      required:
+        - action
+        - parameters
+      properties:
+        controller:
+          type: string
+          example: 'led'
+        action:
+          type: string
+          example: 'scrollText'
+        parameters:
+          type: object
+          example: { "text": "hello world!", "speed": 0.5 }
+    ControlResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/Command'
+    PollResponse:
+      type: object
+      required:
+        - commands
+      properties:
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/Command'
