@@ -5,21 +5,15 @@ info:
   title: Craft IoT PoC API
 paths:
   /get-api-key-for-user:
-    get:
+    post:
       tags:
         - applications
       summary: Fetch a user's API key.
-      parameters:
-        - in: query
-          name: username
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: password
-          required: true
-          schema:
-            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyRequest'
       responses:
         '200':
           description: 200 Response
@@ -250,6 +244,16 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
+    ApiKeyRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
     Error:
       type: object
       required:
